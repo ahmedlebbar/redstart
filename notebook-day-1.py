@@ -71,6 +71,8 @@ def _():
     import numpy as np
     import numpy.linalg as la
 
+
+
     return np, plt, sci
 
 
@@ -593,7 +595,7 @@ def _(mo):
 def _():
     from svg import svg, transform, animate_transform
 
-    return
+    return animate_transform, svg, transform
 
 
 @app.cell(hide_code=True)
@@ -653,6 +655,61 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    **Idée.** SVG a son axe $y$ vers le bas. On enveloppe tout dans deux groupes :
+
+    1. `translate(-x_min, y_max)` pour mettre l'origine au bon endroit ;
+    2. `scale(1, -1)` pour inverser l'axe $y$.
+
+    À l'intérieur on peut alors utiliser directement les coordonnées cartésiennes.
+    """)
+    return
+
+
+@app.cell
+def _(svg, transform):
+    from IPython.display import HTML
+
+    def world(view_box, *objects):
+        x_min, x_max, y_min, y_max = view_box
+        w = x_max - x_min
+        h = y_max - y_min
+        sky    = svg.rect(x=x_min, y=0,     width=w, height=y_max,  fill='#87CEEB')
+        ground = svg.rect(x=x_min, y=y_min, width=w, height=-y_min, fill='#8B4513')
+        target = svg.rect(x=-1,    y=-0.05, width=2, height=0.1,    fill='#22aa22')
+        inner = transform.translate(x=-x_min, y=y_max)(
+            transform.scale(x=1, y=-1)(
+                sky, ground, target, *objects
+            )
+        )
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'viewBox="0 0 {w} {h}" width="360">{inner}</svg>'
+        )
+
+
+    return HTML, world
+
+
+@app.cell
+def _(HTML, svg, world):
+    # Tests : monde vide, monde avec un carré noir sur la cible, monde avec 2 carrés colorés.
+    html = (
+        '<div style="display:flex;justify-content:space-around;gap:10px">'
+        + world([-3, 3, -2, 4])
+        + world([-3, 3, -2, 4], svg.rect(x=-1, y=0, width=2, height=2, fill='black'))
+        + world([-3, 3, -2, 4],
+                svg.rect(x=-3, y=2, width=2, height=2, fill='red'),
+                svg.rect(x=1,  y=2, width=2, height=2, fill='blue'))
+        + '</div>'
+    )
+    HTML(html)
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Booster Drawing
 
     Create a `booster` function that:
@@ -699,6 +756,58 @@ def _(mo):
     )
     ```
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **Construction.**
+
+    Dans le repère propre du booster (origine au centre de masse, axe propre +y) :
+
+    - Corps : rectangle centré, largeur 0.2, hauteur $\ell$, soit $x\in[-0.1,0.1]$, $y\in[-\ell/2,\,\ell/2]$.
+    - Base : point $(0,\,-\ell/2)$.
+    - Flamme : triangle sortant de la base, longueur $L_\text{flamme} = \dfrac{\ell}{2}\cdot\dfrac{f}{Mg}$ (donc $L_\text{flamme} = \ell/2$ lorsque $f = M g$). Le triangle est ensuite tourné de $\phi$ autour de la base.
+
+    On applique enfin `rotate(theta)` autour de $(0,0)$ puis `translate(x, y)` pour placer le booster dans le monde. Comme on travaille dans le repère interne après le `scale(1,-1)`, un `rotate(θ degrés)` correspond bien à une rotation antihoraire dans le repère cartésien.
+    """)
+    return
+
+
+@app.cell
+def _(M, g, l, np, svg, transform):
+    def booster(x, y, theta, f, phi):
+        flame_len = (l / 2) * (f / (M * g)) if f > 0 else 0.0
+        body  = svg.rect(x=-0.1, y=-l/2, width=0.2, height=l, fill='#222222')
+        flame = transform.translate(x=0, y=-l/2)(
+            transform.rotate(a=np.degrees(phi))(
+                svg.polygon(
+                    points=f'-0.12,0 0.12,0 0,{-flame_len}',
+                    fill='orange'
+                )
+            )
+        )
+        return transform.translate(x=x, y=y)(
+            transform.rotate(a=np.degrees(theta))(body, flame)
+        )
+
+
+    return (booster,)
+
+
+@app.cell
+def _(HTML, M, booster, g, l, np, world):
+    # Tests : booster posé, booster en hover (flamme = l/2), booster tilté avec poussée latérale.
+    html2 = (
+        '<div style="display:flex;justify-content:space-around;gap:10px">'
+        + world([-3, 3, -2, 4], booster(0, l/2, 0, 0, 0))
+        + world([-3, 3, -2, 4], booster(0, l, 0, M * g, 0))
+        + world([-3, 3, -2, 4], booster(-l/2, l, np.pi/4, 2 * M * g, np.pi/2))
+        + '</div>'
+    )
+    HTML(html2)
+
     return
 
 
@@ -752,6 +861,67 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    **Idée.**
+
+    On reprend la composition statique du booster, mais chaque transformation devient animée :
+
+    - `animate_transform.translate(x(t), y(t))` pour la position,
+    - `animate_transform.rotate(theta(t))` pour l'inclinaison,
+    - `animate_transform.rotate(phi(t))` autour de la base pour la tuyère,
+    - `animate_transform.scale(1, flame_len(t))` pour rallonger la flamme proportionnellement à $f(t)$.
+
+    Astuce pour la flamme : on dessine un triangle « unitaire » de hauteur 1 et on l'étire par un `scale(1, flame_len(t))` ; comme la pointe est à $y = -1$, après le scale la pointe est à $y = -L_\text{flamme}(t)$.
+    """)
+    return
+
+
+@app.cell
+def _(M, animate_transform, g, l, np, svg, transform):
+    def booster_anim(x, y, theta, f, phi, T):
+        theta_deg = lambda t: np.degrees(theta(t))
+        phi_deg   = lambda t: np.degrees(phi(t))
+        flame_len = lambda t: (l / 2) * f(t) / (M * g)
+
+        body = svg.rect(x=-0.1, y=-l/2, width=0.2, height=l, fill='#222222')
+
+        flame_unit = svg.polygon(points='-0.12,0 0.12,0 0,-1', fill='orange')
+        flame_group = transform.translate(x=0, y=-l/2)(
+            animate_transform.rotate(a=phi_deg, x=0, y=0, T=T)(
+                animate_transform.scale(x=1, y=flame_len, T=T)(
+                    flame_unit
+                )
+            )
+        )
+
+        return animate_transform.translate(x=x, y=y, T=T)(
+            animate_transform.rotate(a=theta_deg, x=0, y=0, T=T)(
+                body, flame_group
+            )
+        )
+
+
+    return (booster_anim,)
+
+
+@app.cell
+def _(HTML, M, booster_anim, g, l, np, world):
+    def booster_anim_0():
+        T = 5.0
+        def x(t):     return -l/2 + l * (t / T)
+        def y(t):     return l/2 + l/2 * (t / T)
+        def theta(t): return (t / T) * 2 * np.pi
+        def f(t):     return M * g * (t / T)
+        def phi(t):   return 2 * np.pi * (t / T)
+        return booster_anim(x, y, theta, f, phi, T=T)
+
+    HTML(world([-3, 3, -2, 4], booster_anim_0()))
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Animated Simulation Results
 
     Let's go back to a booster whose evolution is governed by its system of ordinary differentential equations. Produce a animation of the booster for 5 seconds for each of the following initial value problems:
@@ -764,6 +934,121 @@ def _(mo):
 
     4. The "controlled landing" scenario (see above).
     """)
+    return
+
+
+@app.cell
+def _(booster_anim, redstart_solve):
+    def simulate_and_animate(t_span, y0, f_phi):
+        sol = redstart_solve(t_span, y0, f_phi)
+        T = t_span[1] - t_span[0]
+
+        def x_t(t):     return float(sol(t)[0])
+        def y_t(t):     return float(sol(t)[2])
+        def theta_t(t): return float(sol(t)[4])
+        def f_t(t):     return float(f_phi(t, sol(t))[0])
+        def phi_t(t):   return float(f_phi(t, sol(t))[1])
+
+        return booster_anim(x_t, y_t, theta_t, f_t, phi_t, T=T)
+
+
+    return (simulate_and_animate,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    On utilise `redstart_solve` pour intégrer les EDO, puis on extrait les fonctions $x(t)$, $y(t)$, $\theta(t)$, $f(t)$, $\phi(t)$ depuis la solution dense.
+
+    ### Scénario 1 – Chute libre
+    $(x,\dot x,y,\dot y,\theta,\dot\theta)=(0,0,10,0,0,0)$, $f=0$, $\phi=0$.
+
+    Le booster tombe sans poussée. Il croise $y=\ell$ à $t=4$ s et s'enfonce dans le sol.
+    """)
+    return
+
+
+@app.cell
+def _(HTML, np, simulate_and_animate, world):
+    # Scénario 1 : chute libre (f = 0)
+    y0 = [0.0, 0.0, 10.0, 0.0, 0.0, 0.0]
+    anim_1 = simulate_and_animate(
+        [0.0, 5.0], y0,
+        lambda t, y: np.array([0.0, 0.0]),
+    )
+    HTML(world([-3, 3, -2, 12], anim_1))
+
+    return (y0,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Scénario 2 – Poussée d'équilibre ($f=Mg$, $\phi=0$)
+    $(x,\dot x,y,\dot y,\theta,\dot\theta)=(0,0,10,0,0,0)$, $f=Mg$, $\phi=0$.
+
+    La poussée compense exactement la gravité : le booster est en sustentation parfaite à $y=10$.
+    """)
+    return
+
+
+@app.cell
+def _(HTML, M, g, np, simulate_and_animate, world, y0):
+    # Scénario 2 : poussée constante f = M*g, phi = 0 (hover -> reste immobile en y)
+    anim_2 = simulate_and_animate(
+        [0.0, 5.0], y0,
+        lambda t, y: np.array([M * g, 0.0]),
+    )
+    HTML(world([-3, 3, -2, 12], anim_2))
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Scénario 3 – Poussée déviée ($f=Mg$, $\phi=\pi/8$)
+    $(x,\dot x,y,\dot y,\theta,\dot\theta)=(0,0,10,0,0,0)$, $f=Mg$, $\phi=\pi/8$.
+
+    La poussée n'est pas alignée avec le booster. Un couple $\tau = -\frac{\ell f\sin\phi}{2}$ fait basculer le booster ; la poussée a aussi une composante horizontale qui le déplace latéralement.
+    """)
+    return
+
+
+@app.cell
+def _(HTML, M, g, np, simulate_and_animate, world, y0):
+    # Scénario 3 : f = M*g, phi = pi/8 -> couple non nul, le booster bascule
+    anim_3 = simulate_and_animate(
+        [0.0, 5.0], y0,
+        lambda t, y: np.array([M * g, np.pi / 8]),
+    )
+    HTML(world([-6, 6, -2, 12], anim_3))
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Scénario 4 – Atterrissage contrôlé
+
+    $(x,\dot x,y,\dot y,\theta,\dot\theta)=(0,0,10,-2,0,0)$, $f=f_{\rm landing}(t)$, $\phi=0$.
+
+    La force polynomiale $f(t)=M(\ddot y_{\rm ref}(t)+g)$ guide le booster de $y=10$ à $y=\ell/2=1$ avec vitesse nulle en $t=5$ s.
+    """)
+    return
+
+
+@app.cell
+def _(HTML, T, f_landing, np, simulate_and_animate, world):
+    # Scénario 4 : atterrissage contrôlé (cf. plus haut)
+    y0_land = [0.0, 0.0, 10.0, -2.0, 0.0, 0.0]
+    anim_4 = simulate_and_animate(
+        [0.0, T], y0_land,
+        lambda t, y: np.array([f_landing(t), 0.0]),
+    )
+    HTML(world([-3, 3, -2, 12], anim_4))
+
     return
 
 
