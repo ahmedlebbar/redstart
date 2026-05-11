@@ -71,7 +71,7 @@ def _():
     import numpy as np
     import numpy.linalg as la
 
-    return
+    return (np,)
 
 
 @app.cell(hide_code=True)
@@ -128,6 +128,15 @@ def _(mo):
     return
 
 
+@app.cell
+def _():
+    g = 1.0      
+    M = 1.0      
+    l = 2.0      
+
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -138,6 +147,17 @@ def _(mo):
     return
 
 
+@app.cell
+def _(np):
+    def force(f,teta,phi):
+        return -f*np.sin(teta+phi), f*np.cos(teta+phi)
+
+
+    print(force(1.0,0.0,0.0))           
+    print(force(1.0,0.0,np.pi/2))   
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -145,6 +165,11 @@ def _(mo):
 
     Give the ordinary differential equation that governs the evolution of the position $(x, y)$ of the center of mass of the booster.
     """)
+    return
+
+
+@app.cell
+def _():
     return
 
 
