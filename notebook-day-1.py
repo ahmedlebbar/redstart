@@ -71,7 +71,7 @@ def _():
     import numpy as np
     import numpy.linalg as la
 
-    return (np,)
+    return np, plt, sci
 
 
 @app.cell(hide_code=True)
@@ -255,7 +255,7 @@ def _(accel_teta, centerofmass, np):
 
 
 
-    return
+    return (F,)
 
 
 @app.cell(hide_code=True)
@@ -295,6 +295,49 @@ def _(mo):
     free_fall_example()
     ```
     """)
+    return
+
+
+@app.cell
+def _(F, sci):
+    def redstart_solve(t_span, y0, f_phi):
+        def s_point(t, y):
+            f, phi = f_phi(t, y)
+            return F(y, f, phi)
+
+        res = sci.solve_ivp(
+            s_point,
+            t_span,
+            y0,
+            dense_output=True,
+            max_step=0.05,
+        )
+        return res.sol
+
+
+
+    return (redstart_solve,)
+
+
+@app.cell
+def _(l, np, plt, redstart_solve):
+    def free_fall_example():
+        t_span = [0.0, 5.0]
+        y0 = [0.0, 0.0, 10.0, 0.0, 0.0, 0.0] # [x, vx, y, vy, theta, omega]
+        def f_phi(t, y):
+            return np.array([0.0, 0.0]) # [f, phi]
+        sol = redstart_solve(t_span, y0, f_phi)
+        t = np.linspace(t_span[0], t_span[1], 1000)
+        y_t = sol(t)[2]
+        plt.plot(t, y_t, label=r"$y(t)$ (height in meters)")
+        plt.plot(t, l * np.ones_like(t), color="grey", ls="--", label=r"$y=\ell$")
+        plt.title("Free Fall")
+        plt.xlabel("time $t$")
+        plt.grid(True)
+        plt.legend()
+        return plt.gcf()
+    free_fall_example()
+
     return
 
 
