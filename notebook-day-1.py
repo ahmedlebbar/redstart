@@ -147,6 +147,24 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Dans le repère propre du booster (axe pointant « vers le haut »), la poussée fait un angle $\phi$ (sens antihoraire) avec l'axe du booster, donc ses composantes locales sont $(-f\sin\phi,\; f\cos\phi)$.
+
+    Le booster lui-même est incliné de $\theta$ par rapport à la verticale. En composant les deux rotations, la force exprimée dans le repère monde devient :
+
+    $$
+    \boxed{\;f_x = -f\,\sin(\theta + \phi), \qquad f_y =  f\,\cos(\theta + \phi).\;}
+    $$
+
+    Vérifications :
+    - $\theta=0,\ \phi=0 \Rightarrow (f_x,f_y)=(0,f)$ — poussée verticale.
+    - $\theta=0,\ \phi=\pi/2 \Rightarrow (f_x,f_y)=(-f,0)$ — poussée horizontale.
+    """)
+    return
+
+
 @app.cell
 def _(np):
     def force(f,teta,phi):
@@ -164,6 +182,24 @@ def _(mo):
     ## 🧩 Center of Mass
 
     Give the ordinary differential equation that governs the evolution of the position $(x, y)$ of the center of mass of the booster.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Le centre de masse subit la résultante de la gravité (verticale, vers le bas) et de la poussée du réacteur. Le principe fondamental de la dynamique donne :
+
+    $$
+    M\,\ddot x = f_x, \qquad M\,\ddot y = f_y - M g.
+    $$
+
+    En substituant les expressions de $f_x$ et $f_y$ :
+
+    $$
+    \boxed{\;\ddot x = -\tfrac{f}{M}\sin(\theta+\phi), \qquad \ddot y = \tfrac{f}{M}\cos(\theta+\phi) - g.\;}
+    $$
     """)
     return
 
@@ -191,6 +227,20 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Pour une tige rigide de longueur totale $l$, de masse $M$ uniformément répartie, le moment d'inertie autour d'un axe passant par le centre de masse (perpendiculaire à la tige) est :
+
+    $$
+    J = \tfrac{1}{12} M l^2 .
+    $$
+
+    Avec $M = 1$ kg et $\ell = 2$ m, $J = \tfrac{1}{3}$ kg·m².
+    """)
+    return
+
+
 @app.cell
 def _(M, l):
     J = M * l**2 /12
@@ -205,6 +255,30 @@ def _(mo):
     ## 🧩 Tilt
 
     Give the ordinary differential equation that governs the evolution of the tilt angle $\theta$.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **Explication.**
+
+    La gravité agit au centre de masse : son couple est nul. Seule la poussée du réacteur crée un couple.
+
+    Dans le repère propre du booster, le point d'application de la force est la base, située en $(0,-\ell)$ par rapport au centre de masse, et la force est $(-f\sin\phi,\; f\cos\phi)$. Le couple (composante $z$ scalaire en 2D) vaut :
+
+    $$
+    \tau = r_x F_y - r_y F_x = 0 - (-\ell)(-f\sin\phi) = -\ell\, f \sin\phi.
+    $$
+
+    Le théorème du moment cinétique donne donc :
+
+    $$
+    \boxed{\;\ddot\theta = -\frac{\ell\, f\,\sin\phi}{2J} }
+    $$
+
+    Vérification du signe : si $\phi > 0$, la base est poussée vers la gauche, donc le sommet bascule vers la droite : $\theta$ diminue, cohérent avec $\ddot\theta<0$.
     """)
     return
 
@@ -239,6 +313,32 @@ def _(mo):
 
     $$
     \dot{s} = F(s, f, \phi).
+    $$
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Le booster possède 3 degrés de liberté ($x,\, y,\, \theta$) ; en doublant pour inclure les vitesses, l'état est de dimension :
+
+    $$
+    n = 6, \qquad s = (x,\, v_x,\, y,\, v_y,\, \theta,\, \omega) \in \mathbb{R}^6.
+    $$
+
+    En empilant toutes les EDO trouvées précédemment, le champ de vecteurs s'écrit :
+
+    $$
+    \dot s = F(s, f, \phi) =
+    \begin{pmatrix}
+    v_x \\[2pt]
+    -\dfrac{f}{M}\sin(\theta+\phi) \\[6pt]
+    v_y \\[2pt]
+    \dfrac{f}{M}\cos(\theta+\phi) - g \\[6pt]
+    \omega \\[2pt]
+    -\dfrac{\ell\, f\,\sin\phi}{2J}
+    \end{pmatrix}.
     $$
     """)
     return
@@ -397,8 +497,81 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Comme $\theta \equiv 0$ et $\phi \equiv 0$, la dynamique se réduit à l'axe vertical :
+
+    $$
+    M\,\ddot y(t) = f(t) - M g \quad\Longleftrightarrow\quad f(t) = M\bigl(\ddot y(t) + g\bigr).
+    $$
+
+    On choisit pour $y(t)$ une trajectoire **polynomiale cubique** (4 coefficients = juste assez pour 4 conditions aux limites) :
+
+    $$
+    y(t) = a + b\,t + c\,t^2 + d\,t^3,
+    \qquad
+    \begin{cases} y(0)=10 \\ \dot y(0)=-2 \\ y(5)=1 \\ \dot y(5)=0. \end{cases}
+    $$
+
+    Ce système linéaire est résolu numériquement avec `np.linalg.solve`.
+    """)
+    return
+
+
 @app.cell
-def _():
+def _(M, g, np):
+
+    T = 5.0
+    A = np.array([
+        [1, 0,   0,    0],     # y(0)  = a = 10
+        [0, 1,   0,    0],     # y'(0) = b = -2
+        [1, T, T**2, T**3],    # y(T)  = a+bT+cT^2+dT^3 = 1
+        [0, 1, 2*T,  3*T**2],  # y'(T) = b+2cT+3dT^2    = 0
+    ])
+    conditions = np.array([10.0, -2.0, 1.0, 0.0])
+    a, b, c, d = np.linalg.solve(A, conditions)
+    print(f"a={a}, b={b}, c={c}, d={d}")
+
+    def y_ref(t):  return a + b*t + c*t**2 + d*t**3
+    def ddy_ref(t): return 2*c + 6*d*t
+    def f_landing(t): return M * (ddy_ref(t) + g)
+
+    print(f"f(t) = {M*(2*c + g):.3f} + {M*6*d:.3f} * t")
+    print("f(0) =", f_landing(0.0), "   f(5) =", f_landing(5.0))
+    return T, f_landing
+
+
+@app.cell
+def _(T, f_landing, l, np, plt, redstart_solve):
+    def controlled_landing_example():
+        t_span = [0.0, T]
+        y0 = [0.0, 0.0, 10.0, -2.0, 0.0, 0.0]   # [x, vx, y, vy, theta, omega]
+
+        def f_phi(t, y):
+            return np.array([f_landing(t), 0.0])  # f(t) trouve plus haut, phi = 0
+
+        sol = redstart_solve(t_span, y0, f_phi)
+        t = np.linspace(0.0, T, 500)
+        states = sol(t)
+        y_t, vy_t = states[2], states[3]
+
+        fig, ax = plt.subplots(2, 1, figsize=(7, 5), sharex=True)
+        ax[0].plot(t, y_t, label="$y(t)$")
+        ax[0].axhline(l, color="grey", ls="--", label=r"$y=\ell$")
+        ax[0].set_ylabel("hauteur (m)"); ax[0].grid(True); ax[0].legend()
+
+        ax[1].plot(t, vy_t, color="tab:orange", label=r"$\dot y(t)$")
+        ax[1].axhline(0, color="grey", ls="--")
+        ax[1].set_xlabel("temps $t$ (s)"); ax[1].set_ylabel("vitesse (m/s)")
+        ax[1].grid(True); ax[1].legend()
+
+        print(f"y(T)  = {y_t[-1]:.6f}   (cible = {l})")
+        print(f"vy(T) = {vy_t[-1]:.6f}   (cible = 0)")
+        return fig
+
+    controlled_landing_example()
+
     return
 
 
