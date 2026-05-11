@@ -134,7 +134,7 @@ def _():
     M = 1.0      
     l = 2.0      
 
-    return
+    return M, g, l
 
 
 @app.cell(hide_code=True)
@@ -155,7 +155,7 @@ def _(np):
 
     print(force(1.0,0.0,0.0))           
     print(force(1.0,0.0,np.pi/2))   
-    return
+    return (force,)
 
 
 @app.cell(hide_code=True)
@@ -169,7 +169,15 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(M, force, g):
+    def centerofmass(f, teta, phi):
+        fx, fy = force(f,teta, phi)
+        ax = fx / M
+        ay = fy / M - g
+        return ax, ay
+
+    print(centerofmass(M * g, 0.0, 0.0))
+
     return
 
 
@@ -183,6 +191,14 @@ def _(mo):
     return
 
 
+@app.cell
+def _(M, l):
+    J = M * l**2 /12
+    print(J)
+
+    return (J,)
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -190,6 +206,18 @@ def _(mo):
 
     Give the ordinary differential equation that governs the evolution of the tilt angle $\theta$.
     """)
+    return
+
+
+@app.cell
+def _(J, l, np):
+    def accel_teta(f, phi):
+        return -l * f * np.sin(phi) / J
+
+    # Verif : phi > 0 implique teta diminue
+    print(accel_teta(1.0,  0.1))   
+    print(accel_teta(1.0, -0.1))   
+
     return
 
 
