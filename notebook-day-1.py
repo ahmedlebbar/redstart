@@ -178,7 +178,7 @@ def _(M, force, g):
 
     print(centerofmass(M * g, 0.0, 0.0))
 
-    return
+    return (centerofmass,)
 
 
 @app.cell(hide_code=True)
@@ -218,7 +218,7 @@ def _(J, l, np):
     print(accel_teta(1.0,  0.1))   
     print(accel_teta(1.0, -0.1))   
 
-    return
+    return (accel_teta,)
 
 
 @app.cell(hide_code=True)
@@ -241,6 +241,20 @@ def _(mo):
     \dot{s} = F(s, f, \phi).
     $$
     """)
+    return
+
+
+@app.cell
+def _(accel_teta, centerofmass, np):
+    # Dimension n = 6 :  s = [x, vx, y, vy, teta, omega]
+    def F(s, f, phi):
+        x, vx, y, vy, teta, omega = s
+        ax, ay = centerofmass(f, teta, phi)
+        acc_teta = accel_teta(f, phi)
+        return np.array([vx, ax, vy, ay, omega, acc_teta])
+
+
+
     return
 
 
