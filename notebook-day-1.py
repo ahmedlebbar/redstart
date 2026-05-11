@@ -212,7 +212,7 @@ def _(mo):
 @app.cell
 def _(J, l, np):
     def accel_teta(f, phi):
-        return -l * f * np.sin(phi) / J
+        return -l * f * np.sin(phi) / 2*J
 
     # Verif : phi > 0 implique teta diminue
     print(accel_teta(1.0,  0.1))   
@@ -319,28 +319,6 @@ def _(F, sci):
     return (redstart_solve,)
 
 
-@app.cell
-def _(l, np, plt, redstart_solve):
-    def free_fall_example():
-        t_span = [0.0, 5.0]
-        y0 = [0.0, 0.0, 10.0, 0.0, 0.0, 0.0] # [x, vx, y, vy, theta, omega]
-        def f_phi(t, y):
-            return np.array([0.0, 0.0]) # [f, phi]
-        sol = redstart_solve(t_span, y0, f_phi)
-        t = np.linspace(t_span[0], t_span[1], 1000)
-        y_t = sol(t)[2]
-        plt.plot(t, y_t, label=r"$y(t)$ (height in meters)")
-        plt.plot(t, l * np.ones_like(t), color="grey", ls="--", label=r"$y=\ell$")
-        plt.title("Free Fall")
-        plt.xlabel("time $t$")
-        plt.grid(True)
-        plt.legend()
-        return plt.gcf()
-    free_fall_example()
-
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -358,6 +336,56 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    En chute libre ($f = 0$), $\ddot y = -g$. Avec $y(0)=10$ et $\dot y(0)=0$ :
+
+    $$
+    y(t) = 10 - \tfrac{1}{2} g\, t^2 = 10 - \tfrac{1}{2} t^2.
+    $$
+
+    L'instant $t^\star$ où le centre de masse traverse $y = \ell = 2$ vérifie :
+
+    $$
+    10 - \tfrac{1}{2}(t^\star)^2 = 2 \quad\Longrightarrow\quad t^\star = 4 \text{s}.
+    $$
+
+    Le tracé suivant superpose la solution numérique de `redstart_solve` et la droite $y = \ell$ : on vérifie visuellement qu'elles se croisent en $t = t^\star$ (ligne rouge pointillée).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+ 
+    """)
+    return
+
+
+@app.cell
+def _(l, np, plt, redstart_solve):
+    def free_fall_example():
+        t_span = [0.0, 5.0]
+        y0 = [0.0, 0.0, 10.0, 0.0, 0.0, 0.0] # [x, vx, y, vy, theta, omega]
+        def f_phi(t, y):
+            return np.array([0.0, 0.0]) # [f, phi]
+        sol = redstart_solve(t_span, y0, f_phi)
+        t = np.linspace(t_span[0], t_span[1], 1000)
+        y_t = sol(t)[2]
+        plt.plot(t, y_t, label=r"$y(t)$ (height in meters)")
+        plt.plot(t, l * np.ones_like(t), color="red", ls="--", label=r"$y=\ell$")
+        plt.title("Free Fall")
+        plt.xlabel("time $t$")
+        plt.grid(True)
+        plt.legend()
+        return plt.gcf()
+    free_fall_example()
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Controlled Landing
 
     Assume that $x$, $\dot{x}$, $\theta$ and $\dot{\theta}$ are null at $t=0$ and that $y(0)= 10$ and $\dot{y}(0) = - 2$.
@@ -366,6 +394,11 @@ def _(mo):
 
     Simulate the corresponding scenario, display graphically the results and check that your solution works as expected.
     """)
+    return
+
+
+@app.cell
+def _():
     return
 
 
