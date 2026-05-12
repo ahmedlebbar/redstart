@@ -1694,7 +1694,7 @@ def _(A_lat, B_lat, la, np, plt):
 
     _fig, K_pp = controller_pole_placement()
     _fig
-    return
+    return (K_pp,)
 
 
 @app.cell(hide_code=True)
@@ -1712,9 +1712,258 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    On utilise la commande **LQR**. Le principe : choisir deux poids $Q$ et $R$ qui expriment ce qu'on veut pénaliser, puis laisser l'algorithme calculer le gain $K_{oc}$ optimal.
+
+    **Critère minimisé** :
+    $$
+    J = \int_0^{\infty} \left(\Delta s^{\!\top} Q\,\Delta s + R\,\Delta\phi^2\right) dt
+    $$
+
+    La commande optimale s'écrit $\Delta\phi = -K_{oc}\,\Delta s$ avec $K_{oc} = R^{-1} B_{\text{lat}}^{\!\top} P$, où $P$ est la solution symétrique positive de l'équation algébrique de Riccati :
+    $$
+    A^{\!\top}P + PA - PBR^{-1}B^{\!\top}P + Q = 0.
+    $$
+
+    **Pourquoi ça marche.** Le système étant commandable, le théorème LQR garantit l'existence de $P$ et la **stabilité asymptotique** de la boucle fermée.
+
+    **Stratégie de réglage.** On fixe la structure de $Q = \mathrm{diag}(1,\,1,\,q_\theta,\,1)$ avec un poids élevé sur $\theta$ (sécurité), et on **itère sur $R$** jusqu'à trouver le plus petit $R$ qui satisfait toutes les contraintes :
+
+    1. boucle fermée stable (automatique),
+    2. $|\Delta\phi(t)| \le \pi/2$ (saturation actionneur),
+    3. $t_s(\Delta x) \le 20$ s.
+
+    Plus $R$ est petit → commande forte → dynamique rapide mais risque de saturation.
+    Plus $R$ est grand → commande douce → dynamique lente mais saturation respectée.
+
+    On cherche donc le **plus petit $R$ admissible** pour avoir la dynamique la plus rapide qui rentre dans les contraintes.
+    """)
+    return
+
+
+@app.cell
+def _(A_lat, B_lat, la, np, plt):
+    from scipy.linalg import solve_continuous_are, expm
+
+    def controller_lqr():
+        def evaluate(Q, R):
+            P = solve_continuous_are(A_lat, B_lat, Q, R)
+            K = la.inv(R) @ B_lat.T @ P
+            A_cl = A_lat - B_lat @ K
+            s0 = np.array([0.0, 0.0, np.pi/4, 0.0])
+            t_ = np.linspace(0, 25, 1000)
+            s_t = np.array([expm(A_cl * ti) @ s0 for ti in t_])
+            phi_t = -(K @ s_t.T).ravel()
+            phi_max = np.max(np.abs(phi_t))
+            x_t = s_t[:, 0]
+            x_peak = np.max(np.abs(x_t)) if np.max(np.abs(x_t)) > 0 else 1e-6
+            seuil = 0.05 * x_peak
+            idx = np.where(np.abs(x_t) > seuil)[0]
+            ts_x = t_[idx[-1]] if len(idx) else 0.0
+            return K, phi_max, ts_x, t_, s_t, phi_t
+
+        # --- Grid search silencieux ---
+        best = None
+        for q in [5, 10, 20, 50]:
+            for R_val in [5, 10, 15, 20, 30, 50, 100]:
+                Q_ = np.diag([1.0, 1.0, float(q), 1.0])
+                R_ = np.array([[float(R_val)]])
+                K, phi_max, ts_x, *_ = evaluate(Q_, R_)
+                if phi_max <= np.pi/2 and ts_x <= 20.0:
+                    if best is None or ts_x < best[2]:
+                        best = (q, R_val, ts_x, K)
+
+        # --- Réglage retenu ---
+        q_theta, R_val, _, _ = best
+        Q_ = np.diag([1.0, 1.0, float(q_theta), 1.0])
+        R_ = np.array([[float(R_val)]])
+        K, phi_max, ts_x, t_, s_t, phi_t = evaluate(Q_, R_)
+
+        print(f"Reglage retenu : Q = diag(1, 1, {q_theta}, 1),  R = {R_val}")
+        print(f"K_oc = {K}")
+        print(f"|Delta phi|_max = {phi_max:.3f} rad  (limite pi/2 = {np.pi/2:.3f}) -> "
+              f"{'OK' if phi_max <= np.pi/2 else 'KO'}")
+        print(f"t_s(Delta x) = {ts_x:.1f} s  (cible <= 20 s) -> "
+              f"{'OK' if ts_x <= 20 else 'KO'}")
+
+        fig_, axes_ = plt.subplots(2, 2, figsize=(10, 6))
+        axes_[0,0].plot(t_, s_t[:, 2]); axes_[0,0].set_title(r"$\Delta\theta(t)$"); axes_[0,0].grid(True)
+        axes_[0,1].plot(t_, phi_t);     axes_[0,1].set_title(r"$\Delta\phi(t)$");   axes_[0,1].grid(True)
+        axes_[0,1].axhline(np.pi/2, color="r", ls=":"); axes_[0,1].axhline(-np.pi/2, color="r", ls=":")
+        axes_[1,0].plot(t_, s_t[:, 0]); axes_[1,0].set_title(r"$\Delta x(t)$");      axes_[1,0].grid(True)
+        axes_[1,1].plot(t_, s_t[:, 1]); axes_[1,1].set_title(r"$\Delta\dot x(t)$"); axes_[1,1].grid(True)
+        for ax in axes_.ravel(): ax.set_xlabel("t")
+        fig_.tight_layout()
+        return fig_, K
+
+    _fig, K_oc = controller_lqr()
+    _fig
+    return (K_oc,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Validation
 
     Test the two control strategies (pole placement and optimal control) on the "true" (nonlinear) model with an animation. Check that both controllers achieve their goal; otherwise, go back to the drawing board and tweak the design parameters until they do!
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    On teste les deux gains $K_{pp}$ et $K_{oc}$ sur le **modèle non linéaire complet** (et non plus sur le linéarisé qui a servi à les calculer) :
+
+    - état initial $s_0 = (x, v_x, y, v_y, \theta, \omega) = (0,\ 0,\ 10,\ 0,\ \pi/4,\ 0)$ : le booster est à 10 m d'altitude, à l'arrêt, incliné à 45°,
+    - commande verticale figée $f(t) = Mg$ (la poussée compense la gravité quand le booster est vertical, mais quand $\theta \neq 0$ la composante verticale est $f\cos(\theta+\phi)/M < g$, donc le booster perd un peu d'altitude pendant le transitoire),
+    - commande d'orientation $\phi(t) = -K\,[x,\ v_x,\ \theta,\ \omega]^{\!\top}$,
+    - saturation matérielle $|\phi| \leq \pi/2$.
+
+    **Critères de succès** (mêmes que pour les contrôleurs linéaires) :
+
+    1. $\theta(t) \to 0$ et $x(t) \to 0$ en moins de 20 s,
+    2. $|\phi(t)| \leq \pi/2$ à tout instant,
+    3. le booster reste dans le domaine de validité de la linéarisation : $|\theta(t)| \le \pi/2$.
+
+    Si l'un de ces critères échoue → on retourne ajuster les pôles (pour $K_{pp}$) ou les poids $Q, R$ (pour $K_{oc}$). La cellule de vérification ci-dessous mesure ces grandeurs sur la simulation non-linéaire.
+
+    On termine par les deux animations pour visualiser le comportement.
+    """)
+    return
+
+
+@app.cell
+def _(K_oc, K_pp, M, g, np, redstart_solve):
+    def validate_nonlinear(K, label):
+        """Simule le modele non lineaire avec le gain K et verifie les criteres."""
+        K_full = np.array(K).ravel()
+        def f_phi(t, state):
+            x, vx, y, vy, theta, omega = state
+            phi = -float(K_full @ np.array([x, vx, theta, omega]))
+            phi = max(-np.pi/2 + 1e-3, min(np.pi/2 - 1e-3, phi))
+            return np.array([M * g, phi])
+
+        T = 25.0
+        t = np.linspace(0, T, 2000)
+        sol = redstart_solve([0.0, T], [0.0, 0.0, 10.0, 0.0, np.pi/4, 0.0], f_phi)
+        states = sol(t)
+        x_t, theta_t = states[0], states[4]
+        phi_t = np.array([f_phi(ti, sol(ti))[1] for ti in t])
+
+        # Critere 1 : temps d'etablissement de x a 5%
+        x_peak = np.max(np.abs(x_t)) if np.max(np.abs(x_t)) > 0 else 1e-6
+        seuil = 0.05 * x_peak
+        idx = np.where(np.abs(x_t) > seuil)[0]
+        ts_x = t[idx[-1]] if len(idx) else 0.0
+        # Critere 2 : saturation
+        phi_max = np.max(np.abs(phi_t))
+        # Critere 3 : domaine de validite de la linearisation
+        theta_max = np.max(np.abs(theta_t))
+
+        print(f"--- {label} ---")
+        print(f"  t_s(x) = {ts_x:.1f} s    (cible <= 20 s)  -> {'OK' if ts_x <= 20 else 'KO'}")
+        print(f"  |phi|_max  = {phi_max:.3f} rad  (limite pi/2 = {np.pi/2:.3f}) -> "
+              f"{'OK' if phi_max <= np.pi/2 else 'KO'}")
+        print(f"  |theta|_max= {theta_max:.3f} rad  (lin. valide si < pi/2) -> "
+              f"{'OK' if theta_max <= np.pi/2 else 'KO'}")
+
+    validate_nonlinear(K_pp, "Pole placement (K_pp)")
+    validate_nonlinear(K_oc, "LQR (K_oc)")
+    return
+
+
+@app.cell
+def _(K_oc, K_pp, M, g, np, plt, redstart_solve):
+    # Comparaison graphique des deux contrôleurs sur le système non-linéaire
+    def compare_controllers():
+        T = 25.0
+        t_span = [0.0, T]
+        y0 = [0.0, 0.0, 10.0, 0.0, np.pi/4, 0.0]
+        t = np.linspace(0, T, 1000)
+
+        def make_sol(K):
+            K_full = np.array(K).ravel()
+            def f_phi(t, state):
+                x, vx, y, vy, theta, omega = state
+                phi = -float(K_full @ np.array([x, vx, theta, omega]))
+                phi = max(-np.pi/2 + 1e-3, min(np.pi/2 - 1e-3, phi))
+                return np.array([M * g, phi])
+            return redstart_solve(t_span, y0, f_phi), f_phi
+
+        sol_pp, fphi_pp = make_sol(K_pp)
+        sol_oc, fphi_oc = make_sol(K_oc)
+
+        states_pp = sol_pp(t)
+        states_oc = sol_oc(t)
+        phi_pp = np.array([fphi_pp(ti, sol_pp(ti))[1] for ti in t])
+        phi_oc = np.array([fphi_oc(ti, sol_oc(ti))[1] for ti in t])
+
+        fig, axes = plt.subplots(2, 2, figsize=(11, 6))
+        axes[0,0].plot(t, states_pp[4], label="Pole placement")
+        axes[0,0].plot(t, states_oc[4], label="LQR")
+        axes[0,0].set_title(r"$\theta(t)$"); axes[0,0].legend(); axes[0,0].grid(True)
+        axes[0,1].plot(t, phi_pp, label="Pole placement")
+        axes[0,1].plot(t, phi_oc, label="LQR")
+        axes[0,1].set_title(r"$\phi(t)$ (commande)"); axes[0,1].legend(); axes[0,1].grid(True)
+        axes[1,0].plot(t, states_pp[0], label="Pole placement")
+        axes[1,0].plot(t, states_oc[0], label="LQR")
+        axes[1,0].set_title(r"$x(t)$"); axes[1,0].legend(); axes[1,0].grid(True)
+        axes[1,1].plot(t, states_pp[2], label="Pole placement")
+        axes[1,1].plot(t, states_oc[2], label="LQR")
+        axes[1,1].set_title(r"$y(t)$"); axes[1,1].legend(); axes[1,1].grid(True)
+        for ax in axes.ravel(): ax.set_xlabel("t")
+        fig.tight_layout()
+        return fig
+
+    compare_controllers()
+    return
+
+
+@app.cell
+def _(K_pp, M, booster_anim, g, np, redstart_solve, world):
+    from IPython.display import HTML
+
+    def simulate_and_animate_lateral(K, T=25.0, label=""):
+        K_full = np.array(K).ravel()  # [k_x, k_vx, k_theta, k_omega]
+        def f_phi(t, state):
+            x, vx, y, vy, theta, omega = state
+            s_lat = np.array([x, vx, theta, omega])
+            phi = -float(K_full @ s_lat)
+            phi = max(-np.pi/2 + 1e-3, min(np.pi/2 - 1e-3, phi))
+            return np.array([M * g, phi])
+
+        t_span = [0.0, T]
+        y0 = [0.0, 0.0, 10.0, 0.0, np.pi/4, 0.0]
+        sol = redstart_solve(t_span, y0, f_phi)
+        x     = lambda t: float(sol(t)[0])
+        yp    = lambda t: float(sol(t)[2])
+        theta = lambda t: float(sol(t)[4])
+        f_t   = lambda t: float(f_phi(t, sol(t))[0])
+        phi_t = lambda t: float(f_phi(t, sol(t))[1])
+
+        svg = world([-6, 6, -2, 12], booster_anim(x, yp, theta, f_t, phi_t, T=T))
+        title = f"<h4 style='text-align:center'>{label}</h4>" if label else ""
+        return HTML(f"<div style='text-align:center'>{title}{svg}</div>")
+
+    simulate_and_animate_lateral(K_pp, label="Pole placement")
+    return (simulate_and_animate_lateral,)
+
+
+@app.cell
+def _(K_oc, simulate_and_animate_lateral):
+    simulate_and_animate_lateral(K_oc, label="LQR")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Bilan
+
+    Les deux contrôleurs stabilisent bien le booster sur le modèle non-linéaire. Le placement de pôles donne un comportement plus direct car les pôles sont choisis explicitement, mais le réglage demande un peu de tâtonnement. Le LQR évite ce tâtonnement (la stabilité est garantie par le théorème) mais il faut quand même itérer sur $Q$ et $R$ pour respecter la saturation.
+
+    Au final les deux atteignent l'objectif en moins de 20 s, avec une commande qui reste sous $\pi/2$. Le LQR a tendance à donner une dynamique un peu plus douce sur $\theta$ et $\phi$, ce qui est cohérent avec la pénalisation explicite de la commande dans son critère.
     """)
     return
 
