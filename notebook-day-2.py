@@ -71,7 +71,7 @@ def _():
     import numpy as np
     import numpy.linalg as la
 
-    return np, plt, scipy
+    return la, np, plt, scipy
 
 
 @app.cell(hide_code=True)
@@ -1087,92 +1087,21 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Nous cherchons les *états d’équilibre* du système, c’est-à-dire les configurations où :
+    À l'équilibre, toutes les dérivées temporelles sont nulles : $v_x = v_y = \omega = 0$ et $\ddot{x} = \ddot{y} = \ddot{\theta} = 0$. On reporte cela dans le système :
 
+    \begin{align*}
+    -f \sin(\theta + \phi) &= 0 \\
+    f \cos(\theta + \phi) - Mg &= 0 \\
+    -\tfrac{f\,\ell}{2 J}\sin\phi &= 0
+    \end{align*}
+
+    Comme $f > 0$ : la première équation donne $\sin(\theta + \phi) = 0$, donc (avec $|\theta|,|\phi| < \pi/2$ : la somme est dans $(-\pi,\pi)$) **$\theta + \phi = 0$**. La troisième donne $\sin\phi = 0$ donc **$\phi = 0$** et par conséquent **$\theta = 0$**. La deuxième impose alors $\cos(0) = Mg/f$, soit **$f = Mg$**.
+
+    **Conclusion.** L'ensemble des équilibres est :
     $$
-    \dot{x} = \dot{y} = \dot{\theta} = 0, \quad \ddot{x} = \ddot{y} = \ddot{\theta} = 0
+    s^* = (x^*,\;0,\;y^*,\;0,\;0,\;0),\quad f^* = Mg,\quad \phi^* = 0,
     $$
-
-    D’après les équations fournies, la dynamique du système est :
-    ### Équations du mouvement
-
-    Le système dynamique du booster est donné par les équations suivantes :
-
-    #### Translation horizontale :
-
-    $$
-    M \ddot{x} = -f \sin(\theta + \phi)
-    $$
-
-    #### Translation verticale :
-
-    $$
-    M \ddot{y} = f \cos(\theta + \phi) - Mg
-    $$
-
-    #### Rotation (inclinaison) :
-
-    $$
-    J \ddot{\theta} = -\ell f \sin(\phi)
-    $$
-
-    ---
-
-    ### Conditions à l'équilibre
-
-    #### 1. Équilibre horizontal
-
-    $$
-    \ddot{x} = 0 \Rightarrow \sin(\theta + \phi) = 0 \Rightarrow \theta + \phi = k\pi
-    $$
-
-    Avec les contraintes $|\theta| < \frac{\pi}{2}$ et $|\phi| < \frac{\pi}{2}$, la seule solution acceptable est :
-
-    $$
-    \boxed{\theta + \phi = 0}
-    \quad \Rightarrow \boxed{\phi = -\theta}
-    $$
-
-    ---
-
-    #### 2. Équilibre vertical
-
-    $$
-    \ddot{y} = 0 \Rightarrow f \cos(\theta + \phi) = Mg
-    $$
-
-    En remplaçant $\theta + \phi = 0$ :
-
-    $$
-    \cos(0) = 1 \Rightarrow \boxed{f = Mg}
-    $$
-
-    ---
-
-    #### 3. Équilibre de rotation
-
-    $$
-    \ddot{\theta} = 0 \Rightarrow \sin(\phi) = 0 \Rightarrow \boxed{\phi = 0}
-    \quad \Rightarrow \boxed{\theta = 0}
-    $$
-
-    ---
-
-
-
-    Le système possède un *équilibre unique* (sous les hypothèses $f > 0$, $|\theta| < \frac{\pi}{2}$, $|\phi| < \frac{\pi}{2}$) :
-
-    $$
-    \boxed{
-    \theta = 0, \quad \phi = 0, \quad f = Mg
-    }
-    $$
-
-    Dans cet état :
-    - Le booster est *parfaitement vertical*.
-    - La poussée est *verticale vers le haut*.
-    - Elle compense exactement la gravité.
-    - Il n’y a *ni mouvement ni rotation*.
+    où $(x^*, y^*) \in \mathbb{R}^2$ est arbitraire : le booster tient verticalement à n'importe quelle position, tuyère droite, poussée égale au poids.
     """)
     return
 
@@ -1281,7 +1210,7 @@ def _(M, g, l, np):
 
     print("A =\n", A)
     print("B =\n", B)
-    return
+    return A, B
 
 
 @app.cell(hide_code=True)
@@ -1291,6 +1220,27 @@ def _(mo):
 
     Is the generic equilibrium asymptotically stable?
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Notre matrice $A$ est strictement triangulaire supérieure avec des 0 sur la diagonale → **toutes les valeurs propres valent 0**.
+
+    On est dans le **cas limite**. En plus, la matrice n'est pas diagonalisable (La seule valeur propre est 0 avec multiplicité algébrique 6, mais dim ker(A) = 2 : il n'y a que 2 vecteurs propres indépendants.).
+
+    Par conséquant, le système n'est pas asymptotiquement stable.
+    """)
+    return
+
+
+@app.cell
+def _(A, la):
+    eig = la.eigvals(A)
+    print("Valeurs propres de A :", eig)
+    print("rang de A :", la.matrix_rank(A))
+    print("dim noyau :", 6 - la.matrix_rank(A))   
     return
 
 
@@ -1307,6 +1257,23 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    On forme la matrice de commandabilité $\mathcal{C} = [B\ \ AB\ \ A^2 B\ \ \dots\ \ A^{5} B]$ (dimensions $6\times 12$). Le système est commandable si et seulement si $\operatorname{rang}(\mathcal{C}) = 6$.
+    """)
+    return
+
+
+@app.cell
+def _(A, B, la, np):
+    C = np.hstack([la.matrix_power(A, k) @ B for k in range(6)])
+    rang = la.matrix_rank(C)
+    print("Forme C :", C.shape)
+    print("Rang de C :", rang, "  =>", "COMMANDABLE" if rang == 6 else "non commandable")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Lateral Dynamics
 
     We limit our interest in the lateral position $x$, the tilt $\theta$ and their derivatives (we are for the moment fine with letting $y$ and $\dot{y}$ be uncontrolled). We also set $f = M g$ and control the system only with $\phi$.
@@ -1315,6 +1282,46 @@ def _(mo):
 
     - Check the controllability of this new system.
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    On garde l'état $\Delta s_{\text{lat}} = (\Delta x,\ \Delta v_x,\ \Delta\theta,\ \Delta\omega)^{\!\top}$ et l'unique entrée $\Delta\phi$ (puisque $f = Mg$ est figé, $\Delta f = 0$). Les équations linéarisées projetées sur ces composantes donnent :
+
+    $$
+    A_{\text{lat}} = \begin{bmatrix}
+    0 & 1 & 0  & 0\\
+    0 & 0 & -g & 0\\
+    0 & 0 & 0  & 1\\
+    0 & 0 & 0  & 0
+    \end{bmatrix},\qquad
+    B_{\text{lat}} = \begin{bmatrix} 0\\ -g\\ 0\\ -\tfrac{6g}{\ell}\end{bmatrix}.
+    $$
+
+    On vérifie ensuite la commandabilité par le rang de $[B_{\text{lat}}\ A_{\text{lat}} B_{\text{lat}}\ A_{\text{lat}}^2 B_{\text{lat}}\ A_{\text{lat}}^3 B_{\text{lat}}]$.
+    """)
+    return
+
+
+@app.cell
+def _(g, l, la, np):
+    A_lat = np.array([
+        [0, 1,  0, 0],
+        [0, 0, -g, 0],
+        [0, 0,  0, 1],
+        [0, 0,  0, 0],
+    ], dtype=float)
+
+    B_lat = np.array([[0], [-g], [0], [-6*g/l]], dtype=float)
+
+    C_lat = np.hstack([la.matrix_power(A_lat, k) @ B_lat for k in range(4)])
+    rang_lat = la.matrix_rank(C_lat)
+    print("A_lat =\n", A_lat)
+    print("B_lat =\n", B_lat.ravel())
+    print("Rang de la matrice de commandabilite :", rang_lat,
+          "=>", "COMMANDABLE" if rang_lat == 4 else "non commandable")
     return
 
 
