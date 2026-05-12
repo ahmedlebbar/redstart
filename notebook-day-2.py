@@ -1087,15 +1087,78 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    À l'équilibre, toutes les dérivées temporelles sont nulles : $v_x = v_y = \omega = 0$ et $\ddot{x} = \ddot{y} = \ddot{\theta} = 0$. On reporte cela dans le système :
+    Nous cherchons les *états d’équilibre* du système, c’est-à-dire les configurations où :
 
-    \begin{align*}
-    -f \sin(\theta + \phi) &= 0 \\
-    f \cos(\theta + \phi) - Mg &= 0 \\
-    -\tfrac{f\,\ell}{2 J}\sin\phi &= 0
-    \end{align*}
+    $$
+    \dot{x} = \dot{y} = \dot{\theta} = 0, \quad \ddot{x} = \ddot{y} = \ddot{\theta} = 0
+    $$
 
-    Comme $f > 0$ : la première équation donne $\sin(\theta + \phi) = 0$, donc (avec $|\theta|,|\phi| < \pi/2$ : la somme est dans $(-\pi,\pi)$) **$\theta + \phi = 0$**. La troisième donne $\sin\phi = 0$ donc **$\phi = 0$** et par conséquent **$\theta = 0$**. La deuxième impose alors $\cos(0) = Mg/f$, soit **$f = Mg$**.
+    D’après les équations fournies, la dynamique du système est :
+    ### Équations du mouvement
+
+    Le système dynamique du booster est donné par les équations suivantes :
+
+    #### Translation horizontale :
+
+    $$
+    M \ddot{x} = -f \sin(\theta + \phi)
+    $$
+
+    #### Translation verticale :
+
+    $$
+    M \ddot{y} = f \cos(\theta + \phi) - Mg
+    $$
+
+    #### Rotation (inclinaison) :
+
+    $$
+    J \ddot{\theta} = -\ell f \sin(\phi)
+    $$
+
+    ---
+
+    ### Conditions à l'équilibre
+
+    #### 1. Équilibre horizontal
+
+    $$
+    \ddot{x} = 0 \Rightarrow \sin(\theta + \phi) = 0 \Rightarrow \theta + \phi = k\pi
+    $$
+
+    Avec les contraintes $|\theta| < \frac{\pi}{2}$ et $|\phi| < \frac{\pi}{2}$, la seule solution acceptable est :
+
+    $$
+    \boxed{\theta + \phi = 0}
+    \quad \Rightarrow \boxed{\phi = -\theta}
+    $$
+
+    ---
+
+    #### 2. Équilibre vertical
+
+    $$
+    \ddot{y} = 0 \Rightarrow f \cos(\theta + \phi) = Mg
+    $$
+
+    En remplaçant $\theta + \phi = 0$ :
+
+    $$
+    \cos(0) = 1 \Rightarrow \boxed{f = Mg}
+    $$
+
+    ---
+
+    #### 3. Équilibre de rotation
+
+    $$
+    \ddot{\theta} = 0 \Rightarrow \sin(\phi) = 0 \Rightarrow \boxed{\phi = 0}
+    \quad \Rightarrow \boxed{\theta = 0}
+    $$
+
+    ---
+
+
 
     Le système possède un *équilibre unique* (sous les hypothèses $f > 0$, $|\theta| < \frac{\pi}{2}$, $|\phi| < \frac{\pi}{2}$) :
 
@@ -1104,6 +1167,12 @@ def _(mo):
     \theta = 0, \quad \phi = 0, \quad f = Mg
     }
     $$
+
+    Dans cet état :
+    - Le booster est *parfaitement vertical*.
+    - La poussée est *verticale vers le haut*.
+    - Elle compense exactement la gravité.
+    - Il n’y a *ni mouvement ni rotation*.
     """)
     return
 
@@ -1158,6 +1227,60 @@ def _(mo):
     1. What are the matrices $A$ and $B$ associated to this linear model in standard form?
     2. Define the corresponding NumPy arrays `A` and `B`.
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    On choisit l'état $\Delta s = (\Delta x,\ \Delta v_x,\ \Delta y,\ \Delta v_y,\ \Delta\theta,\ \Delta\omega)^{\!\top}\in\mathbb{R}^6$ et l'entrée $u = (\Delta f,\ \Delta\phi)^{\!\top}\in\mathbb{R}^2$. Le système $\dot{\Delta s} = A\,\Delta s + B\,u$ s'écrit :
+
+    $$
+    A = \begin{bmatrix}
+    0 & 1 & 0 & 0 & 0  & 0\\
+    0 & 0 & 0 & 0 & -g & 0\\
+    0 & 0 & 0 & 1 & 0  & 0\\
+    0 & 0 & 0 & 0 & 0  & 0\\
+    0 & 0 & 0 & 0 & 0  & 1\\
+    0 & 0 & 0 & 0 & 0  & 0
+    \end{bmatrix},\qquad
+    B = \begin{bmatrix}
+    0       & 0\\
+    0       & -g\\
+    0       & 0\\
+    1/M     & 0\\
+    0       & 0\\
+    0       & -\tfrac{6g}{\ell}
+    \end{bmatrix}.
+    $$
+
+    Avec $g=1$, $M=1$, $\ell=2$ on obtient $-6g/\ell = -3$.
+    """)
+    return
+
+
+@app.cell
+def _(M, g, l, np):
+    A = np.array([
+        [0, 1, 0, 0,  0, 0],
+        [0, 0, 0, 0, -g, 0],
+        [0, 0, 0, 1,  0, 0],
+        [0, 0, 0, 0,  0, 0],
+        [0, 0, 0, 0,  0, 1],
+        [0, 0, 0, 0,  0, 0],
+    ], dtype=float)
+
+    B = np.array([
+        [0,      0          ],
+        [0,     -g          ],
+        [0,      0          ],
+        [1/M,    0          ],
+        [0,      0          ],
+        [0,     -6*g/l      ],
+    ], dtype=float)
+
+    print("A =\n", A)
+    print("B =\n", B)
     return
 
 
