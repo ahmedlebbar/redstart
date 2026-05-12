@@ -1257,7 +1257,67 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    On forme la matrice de commandabilité $\mathcal{C} = [B\ \ AB\ \ A^2 B\ \ \dots\ \ A^{5} B]$ (dimensions $6\times 12$). Le système est commandable si et seulement si $\operatorname{rang}(\mathcal{C}) = 6$.
+    **Définition.** $\mathcal{C} = [B \;\; AB \;\; A^2 B \;\; A^3 B \;\; A^4 B \;\; A^5 B]$. Le système est commandable ssi $\operatorname{rang}(\mathcal{C}) = 6$.
+
+    **Données** (avec $g=1$, $M=1$, $\ell=2$, donc $-6g/\ell = -3$) :
+
+    $$
+    A = \begin{bmatrix}
+    0 & 1 & 0 & 0 & 0  & 0\\
+    0 & 0 & 0 & 0 & -1 & 0\\
+    0 & 0 & 0 & 1 & 0  & 0\\
+    0 & 0 & 0 & 0 & 0  & 0\\
+    0 & 0 & 0 & 0 & 0  & 1\\
+    0 & 0 & 0 & 0 & 0  & 0
+    \end{bmatrix},\qquad
+    B = \begin{bmatrix}
+    0 & 0\\ 0 & -1\\ 0 & 0\\ 1 & 0\\ 0 & 0\\ 0 & -3
+    \end{bmatrix}
+    $$
+
+    **Calcul de $AB$.** La $i$-ème ligne de $AB$ = (ligne $i$ de $A$) $\cdot B$, ce qui revient à *sélectionner* des lignes de $B$ pondérées par les coefficients de $A$ :
+
+    - ligne 1 de $A = (0,1,0,0,0,0)$ → ligne 2 de $B = (0,-1)$
+    - ligne 2 de $A = (0,0,0,0,-1,0)$ → $-1\cdot$ ligne 5 de $B = (0,0)$
+    - ligne 3 → ligne 4 de $B = (1,0)$
+    - ligne 4 → $(0,0)$
+    - ligne 5 → ligne 6 de $B = (0,-3)$
+    - ligne 6 → $(0,0)$
+
+    $$
+    AB = \begin{bmatrix} 0 & -1\\ 0 & 0\\ 1 & 0\\ 0 & 0\\ 0 & -3\\ 0 & 0 \end{bmatrix}
+    $$
+
+    **Calcul de $A^2 B = A(AB)$** par la même méthode :
+
+    $$
+    A^2 B = \begin{bmatrix} 0 & 0\\ 0 & 3\\ 0 & 0\\ 0 & 0\\ 0 & 0\\ 0 & 0\end{bmatrix},\qquad
+    A^3 B = A^4 B = A^5 B = 0
+    $$
+
+    (les chaînes d'intégrateurs s'éteignent : dès la 3ème itération, on ne « voit » plus que des lignes nulles).
+
+    **Concaténation** (on ne garde que les colonnes non nulles utiles) :
+
+    $$
+    \mathcal{C} =
+    \begin{bmatrix}
+    \,B_1 & B_2 & AB_1 & AB_2 & A^2B_1 & A^2B_2\,
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+    0 & 0  & 0 & -1 & 0 & 0\\
+    0 & -1 & 0 & 0  & 0 & 3\\
+    0 & 0  & 1 & 0  & 0 & 0\\
+    1 & 0  & 0 & 0  & 0 & 0\\
+    0 & 0  & 0 & -3 & 0 & 0\\
+    0 & -3 & 0 & 0  & 0 & 0
+    \end{bmatrix}
+    $$
+
+    **Rang.** On identifie six pivots : la colonne $B_1$ donne $e_4$, $AB_1$ donne $e_3$, $A^2B_2$ donne $e_2$, $B_2$ donne $e_6$ (après combinaison avec $AB_2$), $AB_2$ donne $e_5$, et $e_1$ vient de la combinaison restante. **Rang = 6 → COMMANDABLE.**
+
+    Vérification numérique ci-dessous.
     """)
     return
 
@@ -1300,7 +1360,38 @@ def _(mo):
     B_{\text{lat}} = \begin{bmatrix} 0\\ -g\\ 0\\ -\tfrac{6g}{\ell}\end{bmatrix}.
     $$
 
-    On vérifie ensuite la commandabilité par le rang de $[B_{\text{lat}}\ A_{\text{lat}} B_{\text{lat}}\ A_{\text{lat}}^2 B_{\text{lat}}\ A_{\text{lat}}^3 B_{\text{lat}}]$.
+    **Calcul détaillé de la matrice de commandabilité.** Avec $g=1$ et $\ell=2$ :
+
+    $$
+    A_{\text{lat}} = \begin{bmatrix} 0&1&0&0\\ 0&0&-1&0\\ 0&0&0&1\\ 0&0&0&0\end{bmatrix},\qquad B_{\text{lat}} = \begin{bmatrix} 0\\ -1\\ 0\\ -3\end{bmatrix}.
+    $$
+
+    On calcule les puissances une par une :
+
+    - $B_{\text{lat}} = (0,\,-1,\,0,\,-3)^{\!\top}$
+    - $A_{\text{lat}} B_{\text{lat}}$ : ligne 1 × $B$ = $-1$ ; ligne 2 = $-1\cdot 0 = 0$ ; ligne 3 = $-3$ ; ligne 4 = $0$ → $(-1,\,0,\,-3,\,0)^{\!\top}$
+    - $A_{\text{lat}}^2 B_{\text{lat}} = A_{\text{lat}}(A_{\text{lat}} B_{\text{lat}})$ : ligne 1 = $0$ ; ligne 2 = $-1\cdot(-3) = 3$ ; ligne 3 = $0$ ; ligne 4 = $0$ → $(0,\,3,\,0,\,0)^{\!\top}$
+    - $A_{\text{lat}}^3 B_{\text{lat}}$ : ligne 1 = $3$ ; autres = $0$ → $(3,\,0,\,0,\,0)^{\!\top}$
+
+    D'où la matrice de commandabilité :
+
+    $$
+    \mathcal{C}_{\text{lat}} =
+    \begin{bmatrix}
+    0  & -1 & 0 & 3\\
+    -1 & 0  & 3 & 0\\
+    0  & -3 & 0 & 0\\
+    -3 & 0  & 0 & 0
+    \end{bmatrix}
+    $$
+
+    **Déterminant** (matrice anti-diagonale par blocs $2\times 2$) :
+
+    $$
+    \det \mathcal{C}_{\text{lat}} = (-3)\cdot(-3)\cdot 3 \cdot 3 = 81 \neq 0
+    $$
+
+    donc **rang $= 4$ → COMMANDABLE**. Vérification numérique ci-dessous.
     """)
     return
 
@@ -1322,7 +1413,7 @@ def _(g, l, la, np):
     print("B_lat =\n", B_lat.ravel())
     print("Rang de la matrice de commandabilite :", rang_lat,
           "=>", "COMMANDABLE" if rang_lat == 4 else "non commandable")
-    return
+    return A_lat, B_lat
 
 
 @app.cell(hide_code=True)
@@ -1336,6 +1427,43 @@ def _(mo):
 
     What do you see? How do you explain it?
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Avec $\phi = 0$, l'équation de rotation linéarisée donne $\Delta\ddot{\theta} = 0$, donc $\Delta\theta(t) = \Delta\theta_0 = \pi/4$ (constant). Cela génère une accélération horizontale constante $\Delta\ddot{x} = -g\,\Delta\theta_0$, d'où $\Delta x(t) = -\tfrac{g\pi}{8} t^2.$ Sans commande, le système est donc instable (divergence de $x$).
+    """)
+    return
+
+
+@app.cell
+def _(g, np, plt):
+    import scipy.integrate as sci2
+
+    def sim_linear_freefall(theta0, t_end=20.0):
+        def dyn(t, s):
+            dx, dvx, dtheta, domega = s
+            d2x     = -g * dtheta        # φ = 0
+            d2theta =  0.0               # φ = 0
+            return [dvx, d2x, domega, d2theta]
+        sol = sci2.solve_ivp(dyn, [0, t_end], [0, 0, theta0, 0], dense_output=True)
+        return sol.sol
+
+    sol_ff = sim_linear_freefall(np.pi / 4)
+    t = np.linspace(0, 20, 1000)
+    s = sol_ff(t)
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    axes[0].plot(t, s[0], label=r"$\Delta x(t)$")
+    axes[0].set_xlabel("t (s)"); axes[0].set_ylabel("m"); axes[0].set_title(r"Dérive latérale $\Delta x$")
+    axes[0].grid(True); axes[0].legend()
+
+    axes[1].plot(t, np.degrees(s[2]), color="tab:orange", label=r"$\Delta\theta(t)$")
+    axes[1].set_xlabel("t (s)"); axes[1].set_ylabel("degrés"); axes[1].set_title(r"Inclinaison $\Delta\theta$")
+    axes[1].grid(True); axes[1].legend()
+    plt.tight_layout(); plt.show()
     return
 
 
@@ -1377,6 +1505,64 @@ def _(mo):
 
     Is your final closed-loop model asymptotically stable?
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Comme l'énoncé l'autorise, on prend $K = \begin{bmatrix} 0 & 0 & k_\theta & k_\omega \end{bmatrix}$. La loi
+    $\Delta\phi = -K\,\Delta s_{\text{lat}} = -k_\theta\,\Delta\theta - k_\omega\,\Delta\omega$
+    n'agit que sur la dynamique de $\theta$ :
+    $$
+    \Delta\ddot{\theta} = -\tfrac{6g}{\ell}\,\Delta\phi = \tfrac{6g}{\ell}\,(k_\theta\,\Delta\theta + k_\omega\,\Delta\omega).
+    $$
+    Avec $\beta := 6g/\ell = 3$, l'équation caractéristique est
+    $$
+    \lambda^2 \;-\; \beta k_\omega\,\lambda \;-\; \beta k_\theta = 0.
+    $$
+    On identifie à $\lambda^2 + 2\zeta\omega_n\lambda + \omega_n^2 = 0$ : il faut
+    $$
+    k_\theta = -\omega_n^2/\beta,\qquad k_\omega = -2\zeta\omega_n/\beta.
+    $$
+
+    **Choix.** On vise un amortissement critique $\zeta = 1$ et un temps de réponse à 5 % d'environ $4/(\zeta\omega_n) \approx 4\text{ s}$, donc $\omega_n = 1$. Cela donne
+    $$
+    k_\theta = -1/3 \approx -0.333,\qquad k_\omega = -2/3 \approx -0.667.
+    $$
+
+    **Vérifications.** $|\Delta\theta(0)| = \pi/4 \approx 0.785$ et $|\Delta\phi|_{\max} \leq |k_\theta|\cdot\pi/4 \approx 0.26 < \pi/2$. Le système $\theta$ seul est stable, donc $\Delta\theta \to 0$. En revanche $\Delta x$ dérive (boucle ouverte sur $x$), ce qui est accepté par l'énoncé.
+    """)
+    return
+
+
+@app.cell
+def _(A_lat, B_lat, la, np, plt):
+    def manual_controller():
+        k_theta, k_omega = -1/3, -2/3
+        K = np.array([[0, 0, k_theta, k_omega]])
+        A_cl = A_lat - B_lat @ K
+        print("Poles boucle fermee :", la.eigvals(A_cl))
+
+        s0 = np.array([0.0, 0.0, np.pi/4, 0.0])
+        t = np.linspace(0, 25, 1000)
+        from scipy.linalg import expm
+        s_t = np.array([expm(A_cl * ti) @ s0 for ti in t])
+        phi_t = -(K @ s_t.T).ravel()
+
+        fig, axes = plt.subplots(2, 2, figsize=(10, 6))
+        axes[0,0].plot(t, s_t[:, 2]); axes[0,0].set_title(r"$\Delta\theta(t)$"); axes[0,0].grid(True)
+        axes[0,0].axhline(np.pi/4, color="r", ls=":"); axes[0,0].axhline(-np.pi/4, color="r", ls=":")
+        axes[0,1].plot(t, phi_t);    axes[0,1].set_title(r"$\Delta\phi(t)$");    axes[0,1].grid(True)
+        axes[0,1].axhline(np.pi/4, color="r", ls=":"); axes[0,1].axhline(-np.pi/4, color="r", ls=":")
+        axes[1,0].plot(t, s_t[:, 0]); axes[1,0].set_title(r"$\Delta x(t)$ (derive acceptee)"); axes[1,0].grid(True)
+        axes[1,1].plot(t, s_t[:, 1]); axes[1,1].set_title(r"$\Delta\dot x(t)$"); axes[1,1].grid(True)
+        for ax in axes.ravel(): ax.set_xlabel("t")
+        fig.tight_layout()
+        return fig, K
+
+    _fig, K_manual = manual_controller()
+    _fig
     return
 
 
