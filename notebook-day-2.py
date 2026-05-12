@@ -1275,47 +1275,45 @@ def _(mo):
     \end{bmatrix}
     $$
 
-    **Calcul de $AB$.** La $i$-ème ligne de $AB$ = (ligne $i$ de $A$) $\cdot B$, ce qui revient à *sélectionner* des lignes de $B$ pondérées par les coefficients de $A$ :
+    **Règle de calcul.** La $i$-ème ligne de $A$ « sélectionne » certaines lignes du vecteur sur lequel on l'applique. Concrètement :
 
-    - ligne 1 de $A = (0,1,0,0,0,0)$ → ligne 2 de $B = (0,-1)$
-    - ligne 2 de $A = (0,0,0,0,-1,0)$ → $-1\cdot$ ligne 5 de $B = (0,0)$
-    - ligne 3 → ligne 4 de $B = (1,0)$
-    - ligne 4 → $(0,0)$
-    - ligne 5 → ligne 6 de $B = (0,-3)$
-    - ligne 6 → $(0,0)$
+    - ligne 1 → prend la ligne 2 (car $\dot x = v_x$),
+    - ligne 2 → prend $-1\times$ la ligne 5 (car $\dot v_x = -g\,\theta$),
+    - ligne 3 → prend la ligne 4 (car $\dot y = v_y$),
+    - **ligne 5 → prend la ligne 6** (car $\dot\theta = \omega$),
+    - lignes 4 et 6 → résultat nul.
 
+    **Calcul colonne par colonne.** Notons $B_1$ et $B_2$ les deux colonnes de $B$. On calcule les puissances jusqu'à annulation.
+
+    Pour $B_1 = (0,0,0,1,0,0)^{\!\top}$ :
     $$
-    AB = \begin{bmatrix} 0 & -1\\ 0 & 0\\ 1 & 0\\ 0 & 0\\ 0 & -3\\ 0 & 0 \end{bmatrix}
-    $$
-
-    **Calcul de $A^2 B = A(AB)$** par la même méthode :
-
-    $$
-    A^2 B = \begin{bmatrix} 0 & 0\\ 0 & 3\\ 0 & 0\\ 0 & 0\\ 0 & 0\\ 0 & 0\end{bmatrix},\qquad
-    A^3 B = A^4 B = A^5 B = 0
+    A B_1 = (0,0,1,0,0,0)^{\!\top},\qquad A^2 B_1 = 0.
     $$
 
-    (les chaînes d'intégrateurs s'éteignent : dès la 3ème itération, on ne « voit » plus que des lignes nulles).
-
-    **Concaténation** (on ne garde que les colonnes non nulles utiles) :
-
+    Pour $B_2 = (0,-1,0,0,0,-3)^{\!\top}$ (c'est cette colonne qui produit la cascade longue) :
     $$
-    \mathcal{C} =
-    \begin{bmatrix}
-    \,B_1 & B_2 & AB_1 & AB_2 & A^2B_1 & A^2B_2\,
-    \end{bmatrix}
-    =
-    \begin{bmatrix}
-    0 & 0  & 0 & -1 & 0 & 0\\
-    0 & -1 & 0 & 0  & 0 & 3\\
-    0 & 0  & 1 & 0  & 0 & 0\\
-    1 & 0  & 0 & 0  & 0 & 0\\
-    0 & 0  & 0 & -3 & 0 & 0\\
-    0 & -3 & 0 & 0  & 0 & 0
-    \end{bmatrix}
+    A B_2 = (-1,0,0,0,-3,0)^{\!\top},\quad
+    A^2 B_2 = (0,3,0,0,0,0)^{\!\top},\quad
+    A^3 B_2 = (3,0,0,0,0,0)^{\!\top},\quad
+    A^4 B_2 = 0.
     $$
 
-    **Rang.** On identifie six pivots : la colonne $B_1$ donne $e_4$, $AB_1$ donne $e_3$, $A^2B_2$ donne $e_2$, $B_2$ donne $e_6$ (après combinaison avec $AB_2$), $AB_2$ donne $e_5$, et $e_1$ vient de la combinaison restante. **Rang = 6 → COMMANDABLE.**
+    *Détail pour $A^3 B_2$* : ligne 1 de $A$ prélève la ligne 2 de $A^2 B_2$, qui vaut 3 → on récupère bien $e_1$.
+
+    **Identification des pivots.** Les colonnes non nulles de $\mathcal{C}$ sont :
+
+    | colonne | vecteur | contient |
+    |---|---|---|
+    | $B_1$ | $(0,0,0,1,0,0)$ | $e_4$ |
+    | $A B_1$ | $(0,0,1,0,0,0)$ | $e_3$ |
+    | $B_2$ | $(0,-1,0,0,0,-3)$ | $e_2$ et $e_6$ |
+    | $A B_2$ | $(-1,0,0,0,-3,0)$ | $e_1$ et $e_5$ |
+    | $A^2 B_2$ | $(0,3,0,0,0,0)$ | $e_2$ |
+    | $A^3 B_2$ | $(3,0,0,0,0,0)$ | $e_1$ |
+
+    En combinant $B_2$ et $A^2 B_2$ on isole $e_6$ ; en combinant $A B_2$ et $A^3 B_2$ on isole $e_5$. Les six vecteurs $e_1,\dots,e_6$ sont donc dans l'image de $\mathcal{C}$.
+
+    **Conclusion : $\operatorname{rang}(\mathcal{C}) = 6$ → COMMANDABLE.**
 
     Vérification numérique ci-dessous.
     """)
@@ -1326,6 +1324,7 @@ def _(mo):
 def _(A, B, la, np):
     C = np.hstack([la.matrix_power(A, k) @ B for k in range(6)])
     rang = la.matrix_rank(C)
+    print(C)
     print("Forme C :", C.shape)
     print("Rang de C :", rang, "  =>", "COMMANDABLE" if rang == 6 else "non commandable")
     return
@@ -1602,6 +1601,99 @@ def _(mo):
 
     Explain how you find the proper design parameters!
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Avec $K_{pp}\in\mathbb{R}^{1\times 4}$ on dispose de **4 degrés de liberté** pour placer les 4 pôles de $A_{\text{lat}} - B_{\text{lat}} K_{pp}$.
+
+    **1) Spécifications :**
+
+    - Temps d'établissement à 5 % : $t_s \le 20$ s. Pour un système dominé par une paire complexe conjuguée $-\sigma \pm j\omega_d$, on a $t_s \approx 3/\sigma$, d'où
+    $$
+    \sigma \;\ge\; \frac{3}{20} = 0.15.
+    $$
+    - Amortissement : $\zeta \ge 0.7$ pour limiter l'overshoot à $\lesssim 5\%$ et éviter des oscillations qui solliciteraient $\Delta\phi$.
+    - Saturation actionneur : $|\Delta\phi(t)| \le \pi/2$ pour la CI $\theta_0 = \pi/4$ (cf. contrôleur manuel). Cela impose de **ne pas mettre les pôles trop à gauche** (gain trop grand $\Rightarrow$ commande trop grande au démarrage).
+
+    **2) Choix des pôles.** On adopte une stratégie pôles dominants / pôles secondaires :
+
+    - **paire dominante** $p_{1,2} = -\sigma_d \pm j\omega_d$ avec $\sigma_d = 0.5$, $\omega_d = 0.3$ → $\zeta = 0.5/\sqrt{0.34} \approx 0.86$, $t_s \approx 3/0.5 = 6$ s. Largement sous les 20 s, avec marge pour le couplage non-linéaire,
+    - **paire secondaire** $p_{3,4} = -0.6 \pm 0.4j$, légèrement plus à gauche, pour rendre la dynamique de $\theta$ un peu plus rapide que celle de $x$ (couplage : $\theta$ doit s'éteindre avant que $x$ ne diverge).
+
+    On *ne pousse pas* les pôles trop à gauche pour respecter la saturation. Les pôles sont **tous distincts** : c'est requis par `place_poles` (algorithme KNV) car $\operatorname{rang}(B_{\text{lat}}) = 1$ borne la multiplicité admissible à 1.
+
+    **3) Vérifications a posteriori (faites dans la cellule suivante).**
+
+    - Pôles obtenus $\equiv$ pôles demandés (à $10^{-10}$ près),
+    - $|\Delta\phi(t)|_{\max} \le \pi/2$ pour $\theta_0 = \pi/4$,
+    - $\Delta x(t),\, \Delta\theta(t) \to 0$ avant 20 s.
+
+    Si l'une de ces conditions échoue, on rapproche/éloigne les pôles de l'axe imaginaire et on itère.
+    """)
+    return
+
+
+@app.cell
+def _(A_lat, B_lat, la, np, plt):
+    from scipy.signal import place_poles
+
+    def controller_pole_placement():
+        # 1) Spécifications 
+        ts_max = 20.0           # temps d'établissement maximal demandé (s)
+        sigma_min = 3.0 / ts_max  # = 0.15 : partie réelle minimale en module
+
+        # 2) Placement des pôles 
+        poles = [-0.5+0.3j, -0.5-0.3j, -0.6+0.4j, -0.6-0.4j]
+        res = place_poles(A_lat, B_lat, poles)
+        Kpp = res.gain_matrix
+        A_cl = A_lat - B_lat @ Kpp
+        poles_obtenus = la.eigvals(A_cl)
+
+        print("K_pp =", Kpp)
+        print("Pôles demandés :", poles)
+        print("Pôles obtenus  :", poles_obtenus)
+        print(f"sigma_min requis = {sigma_min:.3f}, "
+              f"min |Re(p)| obtenu = {min(abs(p.real) for p in poles_obtenus):.3f}  "
+              f"-> {'OK' if min(abs(p.real) for p in poles_obtenus) >= sigma_min else 'KO'}")
+
+        # 3) Simulation linéaire et vérification des contraintes 
+        s0 = np.array([0.0, 0.0, np.pi/4, 0.0])
+        t = np.linspace(0, 25, 1000)
+        from scipy.linalg import expm
+        s_t = np.array([expm(A_cl * ti) @ s0 for ti in t])
+        phi_t = -(Kpp @ s_t.T).ravel()
+
+        # contrainte saturation
+        phi_max = np.max(np.abs(phi_t))
+        print(f"|Delta phi|_max = {phi_max:.3f} rad   (limite pi/2 = {np.pi/2:.3f})  "
+              f"-> {'OK' if phi_max <= np.pi/2 else 'KO'}")
+
+        # contrainte t_s sur Delta x (entrée à +-5% de la valeur finale = 0)
+        x_t = s_t[:, 0]
+        x_peak = np.max(np.abs(x_t))
+        seuil = 0.05 * x_peak if x_peak > 0 else 1e-6
+        idx = np.where(np.abs(x_t) > seuil)[0]
+        ts_x = t[idx[-1]] if len(idx) else 0.0
+        print(f"t_s(Delta x) ≈ {ts_x:.1f} s   (cible <= {ts_max} s)  "
+              f"-> {'OK' if ts_x <= ts_max else 'KO'}")
+
+        # Tracés
+        fig, axes = plt.subplots(2, 2, figsize=(10, 6))
+        axes[0,0].plot(t, s_t[:, 2]); axes[0,0].set_title(r"$\Delta\theta(t)$"); axes[0,0].grid(True)
+        axes[0,1].plot(t, phi_t);    axes[0,1].set_title(r"$\Delta\phi(t)$"); axes[0,1].grid(True)
+        axes[0,1].axhline(np.pi/2, color="r", ls=":"); axes[0,1].axhline(-np.pi/2, color="r", ls=":")
+        axes[1,0].plot(t, s_t[:, 0]); axes[1,0].set_title(r"$\Delta x(t)$"); axes[1,0].grid(True)
+        axes[1,0].axhline( seuil, color="g", ls=":"); axes[1,0].axhline(-seuil, color="g", ls=":")
+        axes[1,1].plot(t, s_t[:, 1]); axes[1,1].set_title(r"$\Delta\dot x(t)$"); axes[1,1].grid(True)
+        for ax in axes.ravel(): ax.set_xlabel("t")
+        fig.tight_layout()
+        return fig, Kpp
+
+    _fig, K_pp = controller_pole_placement()
+    _fig
     return
 
 
