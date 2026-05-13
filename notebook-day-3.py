@@ -2472,6 +2472,15 @@ def _(mo):
     $$
     h^{(4)} = \frac{1}{M}\underbrace{\begin{pmatrix}\sin\theta & \cos\theta \\ -\cos\theta & \sin\theta\end{pmatrix}}_{R(\theta-\pi/2)}\!\begin{pmatrix} v_1 \\ v_2 \end{pmatrix} + \frac{1}{M}\begin{pmatrix} 2\dot z\cos\theta\,\dot\theta - z\sin\theta\,\dot\theta^2 \\ 2\dot z\sin\theta\,\dot\theta + z\cos\theta\,\dot\theta^2 \end{pmatrix}.
     $$
+
+    **Factorisation.** Le second terme se factorise lui aussi par $R(\theta-\pi/2)$. En effet,
+    $$
+    R(\theta-\tfrac{\pi}{2})\!\begin{pmatrix} -z\,\dot\theta^2 \\ 2\dot z\,\dot\theta \end{pmatrix} = \begin{pmatrix}\sin\theta & \cos\theta \\ -\cos\theta & \sin\theta\end{pmatrix}\!\begin{pmatrix} -z\,\dot\theta^2 \\ 2\dot z\,\dot\theta \end{pmatrix} = \begin{pmatrix} 2\dot z\cos\theta\,\dot\theta - z\sin\theta\,\dot\theta^2 \\ 2\dot z\sin\theta\,\dot\theta + z\cos\theta\,\dot\theta^2 \end{pmatrix},
+    $$
+    ce qui donne la forme compacte
+    $$
+    \boxed{\;h^{(4)} = \frac{1}{M}\,R(\theta-\tfrac{\pi}{2})\!\left[\,\begin{pmatrix} v_1 \\ v_2 \end{pmatrix} + \begin{pmatrix} -z\,\dot\theta^2 \\ 2\dot z\,\dot\theta \end{pmatrix}\,\right].\;}
+    $$
     """)
     return
 
@@ -2493,17 +2502,23 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    On résout l'équation $h^{(4)} = u$ par rapport à $v$ :
+    À partir de la forme factorisée de $h^{(4)}$ et de l'équation $h^{(4)} = u$, on isole $v$ :
     $$
-    v = M\,R(\theta-\tfrac{\pi}{2})^{-1}\!\left(u - \frac{1}{M}\!\begin{pmatrix} 2\dot z\cos\theta\,\dot\theta - z\sin\theta\,\dot\theta^2 \\ 2\dot z\sin\theta\,\dot\theta + z\cos\theta\,\dot\theta^2 \end{pmatrix}\right).
-    $$
-
-    Or $R(\alpha) = \begin{pmatrix}\cos\alpha & -\sin\alpha \\ \sin\alpha & -\cos\alpha\end{pmatrix}$ vérifie $R(\alpha)^2 = I$, donc $R^{-1} = R$. On obtient
-    $$
-    \boxed{\;v = M\,R(\theta-\tfrac{\pi}{2})\,(u - \begin{pmatrix} 2\dot z\cos\theta\,\dot\theta - z\sin\theta\,\dot\theta^2 \\ 2\dot z\sin\theta\,\dot\theta + z\cos\theta\,\dot\theta^2 \end{pmatrix}\;)}
+    \frac{1}{M}\,R(\theta-\tfrac{\pi}{2})\!\left[v + \begin{pmatrix} -z\,\dot\theta^2 \\ 2\dot z\,\dot\theta \end{pmatrix}\right] = u.
     $$
 
-    Avec ce bouclage (algébrique, non dynamique), le système augmenté admet $u$ comme entrée et $h$ comme sortie avec $h^{(4)} = u$ : c'est une **chaîne de 4 intégrateurs sur chaque composante** de $h$.
+    Comme $R(\theta-\pi/2)$ est une matrice de **rotation**, elle est orthogonale et $R(\alpha)^{-1} = R(\alpha)^T = R(-\alpha)$. En multipliant à gauche par $R(\theta-\pi/2)^T$ :
+    $$
+    v + \begin{pmatrix} -z\,\dot\theta^2 \\ 2\dot z\,\dot\theta \end{pmatrix} = M\,R(\theta-\tfrac{\pi}{2})^T\,u,
+    $$
+    soit
+    $$
+    \boxed{\;v = M\,R(\theta-\tfrac{\pi}{2})^T\,u + \begin{pmatrix} z\,\dot\theta^2 \\ -2\dot z\,\dot\theta \end{pmatrix},\;}
+    $$
+    avec
+    $$
+    R(\theta-\tfrac{\pi}{2})^T = \begin{pmatrix}\sin\theta & -\cos\theta \\ \cos\theta & \sin\theta\end{pmatrix}.
+    $$
     """)
     return
 
@@ -2696,17 +2711,13 @@ def _(M, T_inv, Tr, l, np):
             x, dx, y, dy, theta, dtheta, z, dz = T_inv(hx, hy, dhx, dhy, d2hx, d2hy, d3hx, d3hy)
 
             c, s = np.cos(theta), np.sin(theta)
-            # v = R(theta - pi/2) (M h^(4) - drift)
-            drift_x = 2*dz*c*dtheta - z*s*dtheta**2
-            drift_y = 2*dz*s*dtheta + z*c*dtheta**2
-            rhs_x = M * d4hx - drift_x
-            rhs_y = M * d4hy - drift_y
-            # R(theta - pi/2) = [[s, c], [-c, s]]
-            v1 = s * rhs_x + c * rhs_y
-            v2 = -c * rhs_x + s * rhs_y
+            # v = M R(theta-pi/2)^T u + [z*dth^2 ; -2*dz*dth]
+            # avec R(theta - pi/2)^T = [[s, -c], [c, s]]
+            u1, u2 = M * d4hx, M * d4hy
+            v1 = s * u1 - c * u2 + z * dtheta**2
+            v2 = c * u1 + s * u2 - 2 * dz * dtheta
 
-            # f cos(phi) = M l dtheta^2 / 6 - z   (axe booster)
-            # f sin(phi) = -M l v2 / (6 z)        (transverse)
+        
             f_par  = M * l * dtheta**2 / 6 - z
             f_perp = -M * l * v2 / (6 * z)
             f = np.sqrt(f_par**2 + f_perp**2)
@@ -2792,16 +2803,6 @@ def _(M, booster_anim, compute, g, l, np, world):
         return HTML(f"<div style='text-align:center'>{svg}</div>")
 
     animate_exact_linearization()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Bilan
-
-    La trajectoire de référence calculée par platitude relie l'état initial $(5, 0, 20, -1, -\pi/8, 0)$ à l'état final $(0, 0, 2\ell/3, 0, 0, 0)$ en 10 s, avec une poussée $f$ et un angle de tuyère $\phi$ qui restent dans des bornes raisonnables. Les courbes de $\theta$ et $\phi$ sont lisses (continues jusqu'à la dérivée 4 par construction), ce qui est nécessaire à la faisabilité physique. L'animation confirme le comportement attendu : le booster effectue une descente courbe et se stabilise verticalement au point d'arrivée.
-    """)
     return
 
 
