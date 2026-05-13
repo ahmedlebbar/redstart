@@ -2461,12 +2461,18 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _():
-    return
+def _(mo):
+    mo.md(r"""
+    **Troisième dérivée.** En dérivant $\ddot h$ :
+    $$
+    h^{(3)} = \frac{1}{M}\begin{pmatrix} \dot z\sin\theta + z\cos\theta\,\dot\theta \\ -\dot z\cos\theta + z\sin\theta\,\dot\theta \end{pmatrix}.
+    $$
 
-
-@app.cell
-def _():
+    **Quatrième dérivée.** En dérivant encore et en utilisant $\ddot z = v_1$, $\ddot\theta = v_2/z$ :
+    $$
+    h^{(4)} = \frac{1}{M}\underbrace{\begin{pmatrix}\sin\theta & \cos\theta \\ -\cos\theta & \sin\theta\end{pmatrix}}_{R(\theta-\pi/2)}\!\begin{pmatrix} v_1 \\ v_2 \end{pmatrix} + \frac{1}{M}\begin{pmatrix} 2\dot z\cos\theta\,\dot\theta - z\sin\theta\,\dot\theta^2 \\ 2\dot z\sin\theta\,\dot\theta + z\cos\theta\,\dot\theta^2 \end{pmatrix}.
+    $$
+    """)
     return
 
 
@@ -2485,12 +2491,20 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _():
-    return
+def _(mo):
+    mo.md(r"""
+    On résout l'équation $h^{(4)} = u$ par rapport à $v$ :
+    $$
+    v = M\,R(\theta-\tfrac{\pi}{2})^{-1}\!\left(u - \frac{1}{M}\!\begin{pmatrix} 2\dot z\cos\theta\,\dot\theta - z\sin\theta\,\dot\theta^2 \\ 2\dot z\sin\theta\,\dot\theta + z\cos\theta\,\dot\theta^2 \end{pmatrix}\right).
+    $$
 
+    Or $R(\alpha) = \begin{pmatrix}\cos\alpha & -\sin\alpha \\ \sin\alpha & -\cos\alpha\end{pmatrix}$ vérifie $R(\alpha)^2 = I$, donc $R^{-1} = R$. On obtient
+    $$
+    \boxed{\;v = M\,R(\theta-\tfrac{\pi}{2})\,u - \begin{pmatrix} 2\dot z\cos\theta\,\dot\theta - z\sin\theta\,\dot\theta^2 \\ 2\dot z\sin\theta\,\dot\theta + z\cos\theta\,\dot\theta^2 \end{pmatrix}\;}
+    $$
 
-@app.cell
-def _():
+    Avec ce bouclage (algébrique, non dynamique), le système augmenté admet $u$ comme entrée et $h$ comme sortie avec $h^{(4)} = u$ : c'est une **chaîne de 4 intégrateurs sur chaque composante** de $h$.
+    """)
     return
 
 
@@ -2504,13 +2518,20 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _():
-    return
-
-
 @app.cell
-def _():
+def _(M, g, l, np):
+    def Tr(x, dx, y, dy, theta, dtheta, z, dz):
+        c, s = np.cos(theta), np.sin(theta)
+        h_x   = x - (l/6) * s
+        h_y   = y + (l/6) * c
+        dh_x  = dx - (l/6) * c * dtheta
+        dh_y  = dy - (l/6) * s * dtheta
+        d2h_x = z * s / M
+        d2h_y = -z * c / M - g
+        d3h_x = (dz * s + z * c * dtheta) / M
+        d3h_y = (-dz * c + z * s * dtheta) / M
+        return h_x, h_y, dh_x, dh_y, d2h_x, d2h_y, d3h_x, d3h_y
+
     return
 
 
