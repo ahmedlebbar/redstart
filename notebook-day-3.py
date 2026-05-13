@@ -2566,25 +2566,56 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Récupération de $\theta$ et $z$** à partir de $\ddot h$ :
+    **Étape 1 — $\theta$ et $z$ depuis $\ddot h$.** On a établi
     $$
-    M\ddot h_x = z\sin\theta,\qquad M(\ddot h_y + g) = -z\cos\theta.
+    \ddot h = \frac{1}{M}\begin{pmatrix} z\sin\theta \\ -z\cos\theta - Mg \end{pmatrix}
+    \;\Longleftrightarrow\;
+    \begin{cases} M\,\ddot h_x = z\sin\theta, \\[2pt] M(\ddot h_y + g) = -z\cos\theta. \end{cases}
     $$
-    En sommant les carrés : $z^2 = M^2[\ddot h_x^2 + (\ddot h_y + g)^2]$. Puisque $z<0$ :
+    En sommant les carrés (identité $\sin^2+\cos^2=1$) :
     $$
-    z = -M\sqrt{\ddot h_x^2 + (\ddot h_y + g)^2},\qquad \theta = \mathrm{atan2}(-\ddot h_x,\ \ddot h_y + g).
+    M^2\bigl[\ddot h_x^2 + (\ddot h_y+g)^2\bigr] = z^2(\sin^2\theta+\cos^2\theta) = z^2.
+    $$
+    Comme on suppose $z<0$ , on prend la racine négative :
+    $$
+    \boxed{\;z = -M\sqrt{\ddot h_x^2 + (\ddot h_y+g)^2}.\;}
+    $$
+    Ensuite, en divisant les deux équations membre à membre :
+    $$
+    \frac{M\,\ddot h_x}{M(\ddot h_y+g)} = \frac{z\sin\theta}{-z\cos\theta} = -\tan\theta,
+    $$
+    on utilise $\mathrm{atan2}$ et on trouve que :
+    $$
+    \boxed{\;\theta = \mathrm{atan2}\bigl(-\ddot h_x,\ \ddot h_y + g\bigr).\;}
     $$
 
-    **Récupération de $x$, $y$** : $x = h_x + (\ell/6)\sin\theta$, $y = h_y - (\ell/6)\cos\theta$.
-
-    **Récupération de $\dot z$ et $\dot\theta$** à partir de $h^{(3)}$ :
+    **Étape 2 — $x$ et $y$ depuis $h$.** Par définition $h = (x,y) - (\ell/6)(-\sin\theta,\cos\theta)$, donc en isolant :
     $$
-    \dot z = M\bigl(h^{(3)}_x\sin\theta - h^{(3)}_y\cos\theta\bigr),\qquad
-    \dot\theta = \frac{M}{z}\bigl(h^{(3)}_x\cos\theta + h^{(3)}_y\sin\theta\bigr).
+    \boxed{\;x = h_x + \tfrac{\ell}{6}\sin\theta,\qquad y = h_y - \tfrac{\ell}{6}\cos\theta.\;}
     $$
 
-    **Récupération de $\dot x$, $\dot y$** :
-    $\dot x = \dot h_x + (\ell/6)\cos\theta\,\dot\theta,\qquad \dot y = \dot h_y + (\ell/6)\sin\theta\,\dot\theta.$
+    **Étape 3 — $\dot z$ et $\dot\theta$ depuis $h^{(3)}$.** On a
+    $$
+    h^{(3)} = \frac{1}{M}\begin{pmatrix} \dot z\sin\theta + z\cos\theta\,\dot\theta \\ -\dot z\cos\theta + z\sin\theta\,\dot\theta \end{pmatrix} = \frac{1}{M}\,R(\theta - \tfrac{\pi}{2})\begin{pmatrix} \dot z \\ z\,\dot\theta \end{pmatrix}.
+    $$
+    C'est un système linéaire $2\times 2$ d'inconnues $(\dot z,\, z\,\dot\theta)$, de matrice $R(\theta-\pi/2)$ qui est une **rotation** (déterminant $1$, donc inversible, et $R^{-1} = R^T$). En multipliant à gauche par $R(\theta-\pi/2)^T = \begin{pmatrix} \sin\theta & -\cos\theta \\ \cos\theta & \sin\theta \end{pmatrix}$ :
+    $$
+    \begin{pmatrix} \dot z \\ z\,\dot\theta \end{pmatrix} = M\,R(\theta-\tfrac{\pi}{2})^T\begin{pmatrix} h^{(3)}_x \\ h^{(3)}_y \end{pmatrix}
+    = M\begin{pmatrix} h^{(3)}_x\sin\theta - h^{(3)}_y\cos\theta \\ h^{(3)}_x\cos\theta + h^{(3)}_y\sin\theta \end{pmatrix}.
+    $$
+    Comme $z\neq 0$, on en déduit :
+    $$
+    \boxed{\;\dot z = M\bigl(h^{(3)}_x\sin\theta - h^{(3)}_y\cos\theta\bigr),\qquad \dot\theta = \frac{M}{z}\bigl(h^{(3)}_x\cos\theta + h^{(3)}_y\sin\theta\bigr).\;}
+    $$
+
+    **Étape 4 — $\dot x$ et $\dot y$ depuis $\dot h$.** En dérivant $h = (x - (\ell/6)\sin\theta,\ y + (\ell/6)\cos\theta)$ :
+    $$
+    \dot h_x = \dot x - \tfrac{\ell}{6}\cos\theta\,\dot\theta,\qquad \dot h_y = \dot y - \tfrac{\ell}{6}\sin\theta\,\dot\theta,
+    $$
+    d'où, $\theta$ et $\dot\theta$ étant déjà connus :
+    $$
+    \boxed{\;\dot x = \dot h_x + \tfrac{\ell}{6}\cos\theta\,\dot\theta,\qquad \dot y = \dot h_y + \tfrac{\ell}{6}\sin\theta\,\dot\theta.\;}
+    $$
     """)
     return
 
