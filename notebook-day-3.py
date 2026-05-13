@@ -2547,6 +2547,7 @@ def _(M, g, l, np):
         d3h_y = (-dz * c + z * s * dtheta) / M
         return h_x, h_y, dh_x, dh_y, d2h_x, d2h_y, d3h_x, d3h_y
 
+    print(Tr(1,2,3,4,0.1,0.2,-0.3,-0.4))
     return (Tr,)
 
 
@@ -2621,7 +2622,7 @@ def _(mo):
 
 
 @app.cell
-def _(M, g, l, np):
+def _(M, Tr, g, l, np):
     def T_inv(h_x, h_y, dh_x, dh_y, d2h_x, d2h_y, d3h_x, d3h_y):
         z = -M * np.sqrt(d2h_x**2 + (d2h_y + g)**2)
         theta = np.arctan2(-d2h_x, d2h_y + g)
@@ -2634,6 +2635,7 @@ def _(M, g, l, np):
         dy = dh_y + (l/6) * s * dtheta
         return x, dx, y, dy, theta, dtheta, z, dz
 
+    print(T_inv(*Tr(1,2,3,4,0.1,0.2,-0.3,-0.4)))
     return (T_inv,)
 
 
