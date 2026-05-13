@@ -2295,7 +2295,7 @@ def _(np, plt):
             # annotations
             a.annotate("G (centre de masse)", (x_cm, y_cm), xytext=(15, -5),
                        textcoords="offset points", color="royalblue", fontsize=11)
-            a.annotate(r"$h$  (centre de percussion)", h_pt, xytext=(15, 5),
+            a.annotate(r"$h$  ", h_pt, xytext=(15, 5),
                        textcoords="offset points", color="crimson", fontsize=12, fontweight="bold")
             a.annotate("tete", nose, xytext=(10, 5), textcoords="offset points", fontsize=10)
             a.annotate("engin (poussee)", engine, xytext=(10, -15),
