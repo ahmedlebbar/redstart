@@ -2500,7 +2500,7 @@ def _(mo):
 
     Or $R(\alpha) = \begin{pmatrix}\cos\alpha & -\sin\alpha \\ \sin\alpha & -\cos\alpha\end{pmatrix}$ vérifie $R(\alpha)^2 = I$, donc $R^{-1} = R$. On obtient
     $$
-    \boxed{\;v = M\,R(\theta-\tfrac{\pi}{2})\,u - \begin{pmatrix} 2\dot z\cos\theta\,\dot\theta - z\sin\theta\,\dot\theta^2 \\ 2\dot z\sin\theta\,\dot\theta + z\cos\theta\,\dot\theta^2 \end{pmatrix}\;}
+    \boxed{\;v = M\,R(\theta-\tfrac{\pi}{2})\,(u - \begin{pmatrix} 2\dot z\cos\theta\,\dot\theta - z\sin\theta\,\dot\theta^2 \\ 2\dot z\sin\theta\,\dot\theta + z\cos\theta\,\dot\theta^2 \end{pmatrix}\;)}
     $$
 
     Avec ce bouclage (algébrique, non dynamique), le système augmenté admet $u$ comme entrée et $h$ comme sortie avec $h^{(4)} = u$ : c'est une **chaîne de 4 intégrateurs sur chaque composante** de $h$.
@@ -2532,7 +2532,7 @@ def _(M, g, l, np):
         d3h_y = (-dz * c + z * s * dtheta) / M
         return h_x, h_y, dh_x, dh_y, d2h_x, d2h_y, d3h_x, d3h_y
 
-    return
+    return (Tr,)
 
 
 @app.cell(hide_code=True)
@@ -2549,13 +2549,46 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
+    mo.md(r"""
+    **Récupération de $\theta$ et $z$** à partir de $\ddot h$ :
+    $$
+    M\ddot h_x = z\sin\theta,\qquad M(\ddot h_y + g) = -z\cos\theta.
+    $$
+    En sommant les carrés : $z^2 = M^2[\ddot h_x^2 + (\ddot h_y + g)^2]$. Puisque $z<0$ :
+    $$
+    z = -M\sqrt{\ddot h_x^2 + (\ddot h_y + g)^2},\qquad \theta = \mathrm{atan2}(-\ddot h_x,\ \ddot h_y + g).
+    $$
+
+    **Récupération de $x$, $y$** : $x = h_x + (\ell/6)\sin\theta$, $y = h_y - (\ell/6)\cos\theta$.
+
+    **Récupération de $\dot z$ et $\dot\theta$** à partir de $h^{(3)}$ :
+    $$
+    \dot z = M\bigl(h^{(3)}_x\sin\theta - h^{(3)}_y\cos\theta\bigr),\qquad
+    \dot\theta = \frac{M}{z}\bigl(h^{(3)}_x\cos\theta + h^{(3)}_y\sin\theta\bigr).
+    $$
+
+    **Récupération de $\dot x$, $\dot y$** :
+    $\dot x = \dot h_x + (\ell/6)\cos\theta\,\dot\theta,\qquad \dot y = \dot h_y + (\ell/6)\sin\theta\,\dot\theta.$
+    """)
     return
 
 
 @app.cell
-def _():
-    return
+def _(M, g, l, np):
+    def T_inv(h_x, h_y, dh_x, dh_y, d2h_x, d2h_y, d3h_x, d3h_y):
+        z = -M * np.sqrt(d2h_x**2 + (d2h_y + g)**2)
+        theta = np.arctan2(-d2h_x, d2h_y + g)
+        c, s = np.cos(theta), np.sin(theta)
+        x = h_x + (l/6) * s
+        y = h_y - (l/6) * c
+        dz = M * (d3h_x * s - d3h_y * c)
+        dtheta = M * (d3h_x * c + d3h_y * s) / z
+        dx = dh_x + (l/6) * c * dtheta
+        dy = dh_y + (l/6) * s * dtheta
+        return x, dx, y, dy, theta, dtheta, z, dz
+
+    return (T_inv,)
 
 
 @app.cell(hide_code=True)
@@ -2595,13 +2628,95 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
+    mo.md(r"""
+    Dans les coordonnées plates $h = (h_x, h_y)$, le système se réduit à *deux chaînes indépendantes de 4 intégrateurs* ($h_x^{(4)} = u_1$, $h_y^{(4)} = u_2$). Toute trajectoire $h(t)$ suffisamment lisse est donc admissible, et on remonte ensuite à l'état physique et à la commande.
+
+    **Étapes implémentées dans `compute`.**
+
+    1. **Conversion des conditions aux limites.**
+
+    2. **Interpolation polynomiale (degré 7).**
+
+    3. **Évaluation des dérivées.**
+
+    4. **Retour à l'état physique.**
+
+    5. **Calcul de la commande nominale $v$.**
+
+    6. **Calcul de $(f, \phi)$.**
+
+    La fonction retourne donc un *callable* `fun(t)` qui produit l'état complet et la commande nominale (feed-forward) à tout instant.
+    """)
     return
 
 
 @app.cell
-def _():
-    return
+def _(M, T_inv, Tr, l, np):
+    def compute(x_0, dx_0, y_0, dy_0, theta_0, dtheta_0, z_0, dz_0,
+                x_tf, dx_tf, y_tf, dy_tf, theta_tf, dtheta_tf, z_tf, dz_tf, tf):
+        # 1) Etats initial et final convertis en (h, h', h'', h''')
+        H0  = Tr(x_0,  dx_0,  y_0,  dy_0,  theta_0,  dtheta_0,  z_0,  dz_0)
+        Htf = Tr(x_tf, dx_tf, y_tf, dy_tf, theta_tf, dtheta_tf, z_tf, dz_tf)
+
+        # 2) Polynome de degre 7 pour chaque composante de h
+        def poly_coeffs(p0, dp0, ddp0, d3p0, ptf, dptf, ddptf, d3ptf):
+            T = tf
+            A_ = np.zeros((8, 8))
+            b_ = np.array([p0, dp0, ddp0, d3p0, ptf, dptf, ddptf, d3ptf], dtype=float)
+            # Conditions a t=0
+            A_[0, 0] = 1
+            A_[1, 1] = 1
+            A_[2, 2] = 2
+            A_[3, 3] = 6
+            # Conditions a t=tf : p(T), p'(T), p''(T), p'''(T)
+            for k in range(8):                       A_[4, k] = T**k
+            for k in range(1, 8):                    A_[5, k] = k * T**(k-1)
+            for k in range(2, 8):                    A_[6, k] = k*(k-1) * T**(k-2)
+            for k in range(3, 8):                    A_[7, k] = k*(k-1)*(k-2) * T**(k-3)
+            return np.linalg.solve(A_, b_)
+
+        a_x = poly_coeffs(H0[0], H0[2], H0[4], H0[6], Htf[0], Htf[2], Htf[4], Htf[6])
+        a_y = poly_coeffs(H0[1], H0[3], H0[5], H0[7], Htf[1], Htf[3], Htf[5], Htf[7])
+
+        from math import factorial
+        def eval_poly(a, t, order):
+            res = 0.0
+            for k in range(order, 8):
+                res += a[k] * factorial(k) / factorial(k - order) * t**(k - order)
+            return res
+
+        def fun(t):
+            hx   = eval_poly(a_x, t, 0); hy   = eval_poly(a_y, t, 0)
+            dhx  = eval_poly(a_x, t, 1); dhy  = eval_poly(a_y, t, 1)
+            d2hx = eval_poly(a_x, t, 2); d2hy = eval_poly(a_y, t, 2)
+            d3hx = eval_poly(a_x, t, 3); d3hy = eval_poly(a_y, t, 3)
+            d4hx = eval_poly(a_x, t, 4); d4hy = eval_poly(a_y, t, 4)
+
+            x, dx, y, dy, theta, dtheta, z, dz = T_inv(hx, hy, dhx, dhy, d2hx, d2hy, d3hx, d3hy)
+
+            c, s = np.cos(theta), np.sin(theta)
+            # v = R(theta - pi/2) (M h^(4) - drift)
+            drift_x = 2*dz*c*dtheta - z*s*dtheta**2
+            drift_y = 2*dz*s*dtheta + z*c*dtheta**2
+            rhs_x = M * d4hx - drift_x
+            rhs_y = M * d4hy - drift_y
+            # R(theta - pi/2) = [[s, c], [-c, s]]
+            v1 = s * rhs_x + c * rhs_y
+            v2 = -c * rhs_x + s * rhs_y
+
+            # f cos(phi) = M l dtheta^2 / 6 - z   (axe booster)
+            # f sin(phi) = -M l v2 / (6 z)        (transverse)
+            f_par  = M * l * dtheta**2 / 6 - z
+            f_perp = -M * l * v2 / (6 * z)
+            f = np.sqrt(f_par**2 + f_perp**2)
+            phi = np.arctan2(f_perp, f_par)
+
+            return x, dx, y, dy, theta, dtheta, z, dz, f, phi
+
+        return fun
+
+    return (compute,)
 
 
 @app.cell(hide_code=True)
@@ -2620,13 +2735,73 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _():
+@app.cell
+def _(M, compute, g, l, np, plt):
+    def validate_exact_linearization():
+        fun = compute(
+            x_0=5.0, dx_0=0.0, y_0=20.0, dy_0=-1.0,
+            theta_0=-np.pi/8, dtheta_0=0.0, z_0=-M*g, dz_0=0.0,
+            x_tf=0.0, dx_tf=0.0, y_tf=2*l/3, dy_tf=0.0,
+            theta_tf=0.0, dtheta_tf=0.0, z_tf=-M*g, dz_tf=0.0,
+            tf=10.0,
+        )
+        t = np.linspace(0, 10, 500)
+        data = np.array([fun(ti) for ti in t])  # columns: x dx y dy th dth z dz f phi
+
+        fig, axes = plt.subplots(3, 3, figsize=(13, 9))
+        axes[0,0].plot(t, data[:, 0]); axes[0,0].set_title("x(t)")
+        axes[0,1].plot(t, data[:, 2]); axes[0,1].set_title("y(t)")
+        axes[0,2].plot(t, data[:, 4]); axes[0,2].set_title(r"$\theta(t)$")
+        axes[1,0].plot(t, data[:, 1]); axes[1,0].set_title(r"$\dot x(t)$")
+        axes[1,1].plot(t, data[:, 3]); axes[1,1].set_title(r"$\dot y(t)$")
+        axes[1,2].plot(t, data[:, 5]); axes[1,2].set_title(r"$\dot\theta(t)$")
+        axes[2,0].plot(t, data[:, 8]); axes[2,0].set_title("f(t) (poussee)")
+        axes[2,0].axhline(M*g, color="r", ls=":", label="M g")
+        axes[2,0].legend()
+        axes[2,1].plot(t, data[:, 9]); axes[2,1].set_title(r"$\phi(t)$ (commande)")
+        axes[2,1].axhline( np.pi/2, color="r", ls=":")
+        axes[2,1].axhline(-np.pi/2, color="r", ls=":")
+        axes[2,2].plot(t, data[:, 6]); axes[2,2].set_title("z(t) (etat auxiliaire)")
+        for ax in axes.ravel(): ax.set_xlabel("t"); ax.grid(True)
+        fig.tight_layout()
+        return fig
+
+    validate_exact_linearization()
     return
 
 
 @app.cell
-def _():
+def _(M, booster_anim, compute, g, l, np, world):
+    from IPython.display import HTML
+
+    def animate_exact_linearization():
+        tf = 10.0
+        fun = compute(
+            x_0=5.0, dx_0=0.0, y_0=20.0, dy_0=-1.0,
+            theta_0=-np.pi/8, dtheta_0=0.0, z_0=-M*g, dz_0=0.0,
+            x_tf=0.0, dx_tf=0.0, y_tf=2*l/3, dy_tf=0.0,
+            theta_tf=0.0, dtheta_tf=0.0, z_tf=-M*g, dz_tf=0.0,
+            tf=tf,
+        )
+        x     = lambda t: fun(t)[0]
+        y     = lambda t: fun(t)[2]
+        theta = lambda t: fun(t)[4]
+        f_t   = lambda t: fun(t)[8]
+        phi_t = lambda t: fun(t)[9]
+        svg = world([-3, 7, -2, 22], booster_anim(x, y, theta, f_t, phi_t, T=tf))
+        return HTML(f"<div style='text-align:center'>{svg}</div>")
+
+    animate_exact_linearization()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Bilan
+
+    La trajectoire de référence calculée par platitude relie l'état initial $(5, 0, 20, -1, -\pi/8, 0)$ à l'état final $(0, 0, 2\ell/3, 0, 0, 0)$ en 10 s, avec une poussée $f$ et un angle de tuyère $\phi$ qui restent dans des bornes raisonnables. Les courbes de $\theta$ et $\phi$ sont lisses (continues jusqu'à la dérivée 4 par construction), ce qui est nécessaire à la faisabilité physique. L'animation confirme le comportement attendu : le booster effectue une descente courbe et se stabilise verticalement au point d'arrivée.
+    """)
     return
 
 
